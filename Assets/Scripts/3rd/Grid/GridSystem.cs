@@ -104,6 +104,33 @@ public class GridSystem : MonoBehaviour
         }
     }
 
+    public bool IsCellOccupied(int row, int col)
+    {
+        GridCell cell = GetCell(row, col);
+        return cell != null && !cell.IsEmpty;
+    }
+
+    public bool CanPlaceAt(int row, int col)
+    {
+        return row >= 0 && row < rows && col >= 0 && col < cols && GetCell(row, col) != null && GetCell(row, col).IsEmpty;
+    }
+
+    public List<GridCell> GetEmptyCells()
+    {
+        List<GridCell> result = new List<GridCell>();
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (cells[r, c] != null && cells[r, c].IsEmpty)
+                {
+                    result.Add(cells[r, c]);
+                }
+            }
+        }
+        return result;
+    }
+
     public void SwapCells(int row1, int col1, int row2, int col2)
     {
         GridCell temp = cells[row1, col1];

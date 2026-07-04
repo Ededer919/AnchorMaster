@@ -7,6 +7,9 @@ public class GridCell : MonoBehaviour
     public bool IsHighlighted { get; private set; }
     public bool IsSelected { get; set; }
 
+    public GridObject OccupiedObject { get; set; }
+    public bool IsEmpty => OccupiedObject == null;
+
     [Header("Visual Settings")]
     public SpriteRenderer backgroundRenderer;
     public SpriteRenderer highlightRenderer;

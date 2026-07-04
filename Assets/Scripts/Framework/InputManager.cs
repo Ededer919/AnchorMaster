@@ -1,30 +1,22 @@
 using UnityEngine;
 using System;
 
-public class InputManager : MonoBehaviour
+/// <summary>
+/// 输入管理器 - 处理触摸和鼠标输入
+/// </summary>
+public class InputManager : Singleton<InputManager>
 {
-    public static InputManager Instance { get; private set; }
-
     public event Action<Vector2> OnClickDown;
     public event Action<Vector2> OnClickHold;
     public event Action<Vector2> OnClickUp;
 
     private bool isDragging = false;
 
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
-
     private void Update()
     {
+        if (GameManager.Instance != null && GameManager.Instance.CurrentState != GameState.Playing)
+            return;
+
         Vector2 inputPos = GetInputPosition();
 
         if (Input.GetMouseButtonDown(0))

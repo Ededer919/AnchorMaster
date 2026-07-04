@@ -65,10 +65,20 @@ public class WindSystem2D : MonoBehaviour
     }
 
     /// <summary>
+    /// Optional bounds — wind only applies inside this rect. Set by SceneBuilder.
+    /// </summary>
+    public Rect? windBounds { get; set; }
+
+    /// <summary>
     /// Returns the total wind force at the given position (global + natural + all wind sources).
+    /// Returns zero outside windBounds if set.
     /// </summary>
     public Vector2 GetWindForceAt(Vector2 position)
     {
+        // Cull wind outside grid bounds
+        if (windBounds.HasValue && !windBounds.Value.Contains(position))
+            return Vector2.zero;
+
         Vector2 totalForce = Vector2.zero;
         float time = Time.time;
 

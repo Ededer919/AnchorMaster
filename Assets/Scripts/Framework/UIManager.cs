@@ -1,10 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
-public class UIManager : MonoBehaviour
+/// <summary>
+/// UI管理器 - 管理所有UI面板
+/// </summary>
+public class UIManager : Singleton<UIManager>
 {
-    public static UIManager Instance { get; private set; }
-
     [Header("UI Panels")]
     public GameObject gamePanel;
     public GameObject winPanel;
@@ -12,70 +14,94 @@ public class UIManager : MonoBehaviour
 
     [Header("UI Texts")]
     public Text statusText;
-    public Text anchorCountText;
     public Text levelText;
     public Text timerText;
     public Text moveCountText;
 
     [Header("UI Buttons")]
-    public Button confirmButton;
     public Button restartButton;
     public Button nextLevelButton;
 
-    private void Awake()
+    // 面板栈
+    private Stack<UIPanel> panelStack = new Stack<UIPanel>();
+
+    protected override void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+        base.Awake();
     }
 
     private void Start()
     {
-        if (confirmButton != null)
-        {
-            confirmButton.onClick.AddListener(OnConfirmClicked);
-        }
-
         if (restartButton != null)
-        {
             restartButton.onClick.AddListener(OnRestartClicked);
-        }
 
         if (nextLevelButton != null)
-        {
             nextLevelButton.onClick.AddListener(OnNextLevelClicked);
-        }
 
-        EnableConfirmButton(false);
+        // 订阅事件
+        EventSystem.Instance.Subscribe<GameStartEvent>(OnGameStart);
+        EventSystem.Instance.Subscribe<GameOverEvent>(OnGameOver);
     }
+
+    protected override void OnDestroy()
+    {
+        EventSystem.Instance.Unsubscribe<GameStartEvent>(OnGameStart);
+        EventSystem.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
+        base.OnDestroy();
+    }
+
+    // ========== 面板管理 ==========
+
+    /// <summary>
+    /// 显示面板
+    /// </summary>
+    public T ShowPanel<T>() where T : UIPanel
+    {
+        T panel = GetComponentInChildren<T>(true);
+        if (panel != null)
+        {
+            panelStack.Push(panel);
+            panel.OnShow();
+        }
+        return panel;
+    }
+
+    /// <summary>
+    /// 隐藏当前面板
+    /// </summary>
+    public void HideCurrentPanel()
+    {
+        if (panelStack.Count > 0)
+        {
+            UIPanel panel = panelStack.Pop();
+            panel.OnHide();
+        }
+    }
+
+    /// <summary>
+    /// 隐藏所有面板
+    /// </summary>
+    public void HideAllPanels()
+    {
+        while (panelStack.Count > 0)
+        {
+            UIPanel panel = panelStack.Pop();
+            panel.OnHide();
+        }
+    }
+
+    // ========== 文本更新 ==========
 
     public void UpdateStatus(string message)
     {
         if (statusText != null)
-        {
             statusText.text = message;
-        }
-    }
-
-    public void UpdateAnchorCount(int current, int max)
-    {
-        if (anchorCountText != null)
-        {
-            anchorCountText.text = "Anchors: " + current + " / " + max;
-        }
     }
 
     public void UpdateLevel(int level)
     {
         if (levelText != null)
-        {
             levelText.text = "Level " + level;
-        }
     }
 
     public void UpdateTimer(float time)
@@ -91,18 +117,10 @@ public class UIManager : MonoBehaviour
     public void UpdateMoveCount(int count)
     {
         if (moveCountText != null)
-        {
             moveCountText.text = "Moves: " + count;
-        }
     }
 
-    public void EnableConfirmButton(bool enable)
-    {
-        if (confirmButton != null)
-        {
-            confirmButton.interactable = enable;
-        }
-    }
+    // ========== 面板切换 ==========
 
     public void ShowGamePanel()
     {
@@ -123,10 +141,7 @@ public class UIManager : MonoBehaviour
         if (losePanel != null) losePanel.SetActive(true);
     }
 
-    private void OnConfirmClicked()
-    {
-        GameManager.Instance?.ConfirmAnchorPlacement();
-    }
+    // ========== 按钮回调 ==========
 
     private void OnRestartClicked()
     {
@@ -136,5 +151,21 @@ public class UIManager : MonoBehaviour
     private void OnNextLevelClicked()
     {
         GameManager.Instance?.NextLevel();
+    }
+
+    // ========== 事件处理 ==========
+
+    private void OnGameStart(GameStartEvent evt)
+    {
+        ShowGamePanel();
+        UpdateStatus("Game Started!");
+    }
+
+    private void OnGameOver(GameOverEvent evt)
+    {
+        if (evt.IsWin)
+            ShowWinPanel();
+        else
+            ShowLosePanel();
     }
 }
