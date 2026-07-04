@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   level: 4
   levelName: "\u66B4\u98CE\u5CAD"
-  rows: 30
-  cols: 40
+  rows: 20
+  cols: 30
   cellSize: 0.5
   groundWidth: 60
   groundHeight: 8

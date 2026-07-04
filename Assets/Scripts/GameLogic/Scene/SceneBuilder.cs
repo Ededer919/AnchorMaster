@@ -18,6 +18,9 @@ public class SceneBuilder : MonoBehaviour
     [Header("Balloons")]
     public int balloonCount = 1;
 
+    [Header("Level Background")]
+    public int levelIndex = 1;
+
     public GridSystem GridSystem { get; private set; }
     public GridObjectManager ObjectManager { get; private set; }
     public WindSystem2D WindSystem { get; private set; }
@@ -105,12 +108,16 @@ public class SceneBuilder : MonoBehaviour
         if (cam != null)
         {
             cam.orthographic = true;
-            // Fit grid + staging area above + ground below
             float viewHeight = rows * cellSize + groundHeight + cellSize * 3f;
             float viewWidth = cols * cellSize + cellSize * 4f;
             cam.orthographicSize = Mathf.Max(viewHeight * 0.6f, viewWidth * 0.6f / cam.aspect);
-            cam.backgroundColor = new Color(0.1f, 0.1f, 0.14f);
         }
+
+        // Load level background
+        CreateLevelBackground(root);
+
+        // Load sky/sun
+        CreateSky(root);
 
         Debug.Log("[SceneBuilder] Scene built.");
     }
@@ -124,8 +131,8 @@ public class SceneBuilder : MonoBehaviour
     {
         var config = ObjectConfig.Get(type);
 
-        // Try loading prefab from Resources/new/wa/
-        string prefabPath = "new/wa/" + type.ToString();
+        // Try loading prefab from Resources/UI/Prefabs/Objects/
+        string prefabPath = "UI/Prefabs/Objects/" + type.ToString();
         var prefab = Resources.Load<GameObject>(prefabPath);
 
         GameObject go;
@@ -140,8 +147,12 @@ public class SceneBuilder : MonoBehaviour
             var sr = go.GetComponent<SpriteRenderer>();
             if (sr != null)
             {
+                // Keep prefab's sprite; only set color for Balloon (multi-color)
                 if (sr.sprite == null) sr.sprite = sharedSprite;
-                sr.color = color;
+                if (type == ObjectType.Balloon)
+                    sr.color = color; // Balloon uses random color tint
+                else
+                    sr.color = Color.white; // Other types use texture as-is
                 sr.sortingOrder = 10;
             }
         }
@@ -163,9 +174,14 @@ public class SceneBuilder : MonoBehaviour
         }
 
         go.transform.position = position;
-        go.transform.localScale = Vector3.one * cellSize;
+        // Scale to cell size; Balloon is 1x2 ratio so scale Y by half to fit square cell
+        if (type == ObjectType.Balloon)
+            go.transform.localScale = new Vector3(cellSize, cellSize * 0.5f, 1);
+        else
+            go.transform.localScale = Vector3.one * cellSize;
 
         obj = go.GetComponent<GridObject>();
+        if (obj == null) obj = go.AddComponent<GridObject>();
         obj.objectID = name.ToLower() + "_" + spawnedCount++;
         obj.displayName = name;
         obj.objectType = type;
@@ -193,6 +209,107 @@ public class SceneBuilder : MonoBehaviour
 
         var col = go.AddComponent<BoxCollider2D>();
         col.size = Vector2.one;
+    }
+
+    /// <summary>
+    /// Loads and places the level background image behind the game area.
+    /// </summary>
+    private void CreateLevelBackground(Transform parent)
+    {
+        // Try loading level-specific background
+        string bgPath = "UI/Sprites/Levels/l" + levelIndex;
+        var bgTex = Resources.Load<Texture2D>(bgPath);
+        if (bgTex == null)
+        {
+            bgPath = "UI/Sprites/Levels/01";
+            bgTex = Resources.Load<Texture2D>(bgPath);
+        }
+
+        if (bgTex == null) return;
+
+        var bgSprite = Sprite.Create(bgTex, new Rect(0, 0, bgTex.width, bgTex.height),
+            new Vector2(0.5f, 0.5f), Mathf.Max(bgTex.width, bgTex.height));
+
+        var bgGo = new GameObject("LevelBackground");
+        bgGo.transform.SetParent(parent, false);
+        bgGo.transform.position = new Vector3(0, GroundTopY + rows * cellSize / 2f, 5);
+        bgGo.transform.localScale = new Vector3(
+            Mathf.Max(cols * cellSize * 3f, 30f),
+            Mathf.Max(rows * cellSize * 3f, 20f),
+            1);
+
+        var sr = bgGo.AddComponent<SpriteRenderer>();
+        sr.sprite = bgSprite;
+        sr.color = new Color(0.6f, 0.6f, 0.6f, 0.4f);
+        sr.sortingOrder = -3;
+
+        Debug.Log("[SceneBuilder] Level background loaded: " + bgPath);
+    }
+
+    /// <summary>
+    /// Loads sky and sun decorations.
+    /// </summary>
+    private void CreateSky(Transform parent)
+    {
+        // Sky
+        var skyTex = Resources.Load<Texture2D>("UI/Sprites/Objects/sky");
+        if (skyTex != null)
+        {
+            var skySprite = Sprite.Create(skyTex, new Rect(0, 0, skyTex.width, skyTex.height),
+                new Vector2(0.5f, 0.5f), Mathf.Max(skyTex.width, skyTex.height));
+
+            var skyGo = new GameObject("Sky");
+            skyGo.transform.SetParent(parent, false);
+            skyGo.transform.position = new Vector3(0, GroundTopY + rows * cellSize + 5f, 10);
+            skyGo.transform.localScale = new Vector3(50, 20, 1);
+
+            var sr = skyGo.AddComponent<SpriteRenderer>();
+            sr.sprite = skySprite;
+            sr.color = new Color(0.8f, 0.8f, 0.9f, 0.3f);
+            sr.sortingOrder = -5;
+        }
+
+        // Sun
+        var sunTex = Resources.Load<Texture2D>("UI/Sprites/Objects/sun");
+        if (sunTex != null)
+        {
+            var sunSprite = Sprite.Create(sunTex, new Rect(0, 0, sunTex.width, sunTex.height),
+                new Vector2(0.5f, 0.5f), Mathf.Max(sunTex.width, sunTex.height));
+
+            var sunGo = new GameObject("Sun");
+            sunGo.transform.SetParent(parent, false);
+            sunGo.transform.position = new Vector3(-cols * cellSize / 2f - 3f,
+                GroundTopY + rows * cellSize + 3f, 8);
+            sunGo.transform.localScale = new Vector3(3, 3, 1);
+
+            var sr = sunGo.AddComponent<SpriteRenderer>();
+            sr.sprite = sunSprite;
+            sr.sortingOrder = -4;
+        }
+
+        // Clouds
+        var cloudTex = Resources.Load<Texture2D>("UI/Sprites/Objects/cloud");
+        if (cloudTex != null)
+        {
+            var cloudSprite = Sprite.Create(cloudTex, new Rect(0, 0, cloudTex.width, cloudTex.height),
+                new Vector2(0.5f, 0.5f), Mathf.Max(cloudTex.width, cloudTex.height));
+
+            for (int i = 0; i < 3; i++)
+            {
+                var cloudGo = new GameObject("Cloud_" + i);
+                cloudGo.transform.SetParent(parent, false);
+                cloudGo.transform.position = new Vector3(
+                    Random.Range(-cols * cellSize / 2f, cols * cellSize / 2f),
+                    GroundTopY + rows * cellSize + Random.Range(2f, 6f),
+                    7);
+                cloudGo.transform.localScale = new Vector3(4, 2, 1);
+
+                var sr = cloudGo.AddComponent<SpriteRenderer>();
+                sr.sprite = cloudSprite;
+                sr.color = new Color(1, 1, 1, 0.5f);
+                sr.sortingOrder = -4;
+            }
+        }
     }
 
     private Sprite CreateWhiteSprite()

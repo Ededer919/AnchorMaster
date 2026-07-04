@@ -9,7 +9,7 @@ using UnityEngine.EventSystems;
 /// </summary>
 public class GameUIBuilder : MonoBehaviour
 {
-    private const string PREFAB_PATH = "UI/Prefabs/GameUICanvas";
+    private const string PREFAB_PATH = "UI/Panels/Game";
 
     public Text StatusText { get; private set; }
     public Text LevelText { get; private set; }
@@ -45,22 +45,22 @@ public class GameUIBuilder : MonoBehaviour
             esGo.AddComponent<StandaloneInputModule>();
         }
 
-        // Remove old canvas
-        var oldCanvas = GameObject.Find("GameUICanvas");
-        if (oldCanvas != null) DestroyImmediate(oldCanvas);
-        var oldSceneCanvas = GameObject.Find("Canvas");
-        if (oldSceneCanvas != null) DestroyImmediate(oldSceneCanvas);
+        // Find existing GamePanel (loaded by GameFlowManager) or load prefab
+        GameObject canvasGo = GameObject.Find("GamePanel");
+        if (canvasGo == null) canvasGo = GameObject.Find("Game");
 
-        // Load prefab
-        var prefab = Resources.Load<GameObject>(PREFAB_PATH);
-        if (prefab == null)
+        if (canvasGo == null)
         {
-            Debug.LogError("[GameUIBuilder] Prefab not found: " + PREFAB_PATH);
-            return;
+            // Load prefab ourselves
+            var prefab = Resources.Load<GameObject>(PREFAB_PATH);
+            if (prefab == null)
+            {
+                Debug.LogError("[GameUIBuilder] Prefab not found: " + PREFAB_PATH);
+                return;
+            }
+            canvasGo = Instantiate(prefab);
+            canvasGo.name = "GamePanel";
         }
-
-        var canvasGo = Instantiate(prefab);
-        canvasGo.name = "GameUICanvas";
 
         // Cache references
         LevelText = Find<Text>(canvasGo, "TopBar/LevelText");

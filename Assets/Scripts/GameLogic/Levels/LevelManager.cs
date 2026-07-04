@@ -90,11 +90,6 @@ public class LevelManager : MonoBehaviour
 
         currentIndex = index;
         Debug.Log($"[LevelManager] Loaded level {index + 1}: {levels[index].levelName}");
-
-        // Trigger scene rebuild
-        var launcher = FindFirstObjectByType<GameLauncher>();
-        if (launcher != null)
-            launcher.ReloadScene();
     }
 
     public void NextLevel()

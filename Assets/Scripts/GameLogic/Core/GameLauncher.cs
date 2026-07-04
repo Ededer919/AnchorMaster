@@ -27,10 +27,10 @@ public class GameLauncher : MonoBehaviour
 
     private void Start()
     {
-        InitScene();
+        // Don't auto-init — GameFlowManager will call InitScene when level is chosen
     }
 
-    private void InitScene()
+    public void InitScene()
     {
         // Get level config
         LevelData level = LevelManager.Instance?.CurrentLevel;
@@ -53,6 +53,7 @@ public class GameLauncher : MonoBehaviour
         sceneBuilder.groundWidth = groundWidth;
         sceneBuilder.groundHeight = groundHeight;
         sceneBuilder.balloonCount = level != null ? level.humanCount : 1;
+        sceneBuilder.levelIndex = level != null ? level.level : 1;
         sceneBuilder.Build();
 
         // 2. Physics merge system
