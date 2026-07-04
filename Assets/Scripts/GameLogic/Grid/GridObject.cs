@@ -118,11 +118,6 @@ public class GridObject : MonoBehaviour
         if (!cell.IsEmpty && cell.OccupiedObject != this)
             return false;
 
-        // Block placement near balloons (8-directional)
-        if (objectType != ObjectType.Balloon && objectType != ObjectType.Bedrock
-            && grid.IsNearBalloon(row, col))
-            return false;
-
         GridCell oldCell = CurrentCell;
         if (oldCell != null && oldCell != cell)
         {

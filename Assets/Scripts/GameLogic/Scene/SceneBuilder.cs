@@ -52,6 +52,7 @@ public class SceneBuilder : MonoBehaviour
         sharedSprite = CreateWhiteSprite();
 
         var rootGo = new GameObject("GameWorld");
+        rootGo.layer = 8; // Game
         var root = rootGo.transform;
 
         float gridHeight = rows * cellSize;
@@ -108,18 +109,34 @@ public class SceneBuilder : MonoBehaviour
         if (cam != null)
         {
             cam.orthographic = true;
+            cam.clearFlags = CameraClearFlags.SolidColor;
             float viewHeight = rows * cellSize + groundHeight + cellSize * 3f;
             float viewWidth = cols * cellSize + cellSize * 4f;
             cam.orthographicSize = Mathf.Max(viewHeight * 0.6f, viewWidth * 0.6f / cam.aspect);
+
+            // Sync UI Camera orthographicSize so Canvas (ScreenSpaceCamera) aligns with game world
+            var uiCam = UnityEngine.Object.FindObjectsByType<Camera>(UnityEngine.FindObjectsSortMode.None);
+            foreach (var c in uiCam)
+            {
+                if (c != cam && c.gameObject.name == "UI Camera")
+                {
+                    c.orthographicSize = cam.orthographicSize;
+                    c.clearFlags = CameraClearFlags.Depth;
+                }
+            }
         }
 
-        // Load level background
-        CreateLevelBackground(root);
-
-        // Load sky/sun
-        CreateSky(root);
+        // Set all GameWorld descendants to Game layer
+        SetLayerRecursive(root, 8);
 
         Debug.Log("[SceneBuilder] Scene built.");
+    }
+
+    private void SetLayerRecursive(Transform t, int layer)
+    {
+        t.gameObject.layer = layer;
+        for (int i = 0; i < t.childCount; i++)
+            SetLayerRecursive(t.GetChild(i), layer);
     }
 
     public GridObject CreateObject(string name, Color color, Vector3 position)
@@ -143,6 +160,7 @@ public class SceneBuilder : MonoBehaviour
             // Instantiate from prefab
             go = Instantiate(prefab, ObjectsParent);
             go.name = name;
+            go.layer = 8; // Game
 
             var sr = go.GetComponent<SpriteRenderer>();
             if (sr != null)
@@ -161,6 +179,7 @@ public class SceneBuilder : MonoBehaviour
             // Fallback: create from code
             go = new GameObject(name);
             go.transform.SetParent(ObjectsParent, false);
+            go.layer = 8; // Game
 
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sharedSprite;
@@ -174,11 +193,30 @@ public class SceneBuilder : MonoBehaviour
         }
 
         go.transform.position = position;
-        // Scale to cell size; Balloon is 1x2 ratio so scale Y by half to fit square cell
-        if (type == ObjectType.Balloon)
-            go.transform.localScale = new Vector3(cellSize, cellSize * 0.5f, 1);
+        // Scale so the sprite fills exactly one cell, regardless of its natural size
+        var objSr = go.GetComponent<SpriteRenderer>();
+        if (objSr != null && objSr.sprite != null)
+        {
+            var b = objSr.sprite.bounds.size;
+            if (b.x > 0 && b.y > 0)
+                go.transform.localScale = new Vector3(cellSize / b.x, cellSize / b.y, 1);
+            else
+                go.transform.localScale = Vector3.one * cellSize;
+        }
         else
+        {
             go.transform.localScale = Vector3.one * cellSize;
+        }
+
+        // Resize collider to cover 95% of cell in world space, regardless of sprite scale
+        var col2D = go.GetComponent<Collider2D>();
+        if (col2D is BoxCollider2D bc)
+        {
+            float sX = Mathf.Abs(go.transform.localScale.x);
+            float sY = Mathf.Abs(go.transform.localScale.y);
+            if (sX > 0 && sY > 0)
+                bc.size = new Vector2(cellSize * 0.95f / sX, cellSize * 0.95f / sY);
+        }
 
         obj = go.GetComponent<GridObject>();
         if (obj == null) obj = go.AddComponent<GridObject>();
@@ -404,9 +442,9 @@ public class SceneBuilder : MonoBehaviour
 
             do
             {
-                // Interior only: not on any edge row/col
-                r = Random.Range(1, Mathf.Max(2, rows - 1));
-                c = Random.Range(1, Mathf.Max(2, cols - 1));
+                // At least 2 cells away from any edge
+                r = Random.Range(2, Mathf.Max(3, rows - 2));
+                c = Random.Range(2, Mathf.Max(3, cols - 2));
                 attempts++;
             }
             while (!GridSystem.CanPlaceAt(r, c) && attempts < maxAttempts);

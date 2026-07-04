@@ -6,12 +6,17 @@ using UnityEngine;
 /// </summary>
 public class GameLauncher : MonoBehaviour
 {
+    private enum Phase { Building, WindPhase, Ended }
+
     private SceneBuilder sceneBuilder;
     private GridInputHandler inputHandler;
     private BuildSystem buildSystem;
     private GameUIBuilder uiBuilder;
     private PhysicsMergeSystem physicsMerge;
     private DisasterWindController windController;
+
+    private Phase currentPhase = Phase.Ended;
+    private float buildTimer;
 
     private void OnEnable()
     {
@@ -30,6 +35,29 @@ public class GameLauncher : MonoBehaviour
         // Don't auto-init — GameFlowManager will call InitScene when level is chosen
     }
 
+    private void Update()
+    {
+        if (currentPhase != Phase.Building) return;
+
+        buildTimer -= Time.deltaTime;
+        uiBuilder?.UpdateTimer(buildTimer);
+
+        if (buildTimer <= 0f)
+        {
+            StartWindPhase();
+        }
+    }
+
+    private void StartWindPhase()
+    {
+        currentPhase = Phase.WindPhase;
+        inputHandler?.DisableInput();
+        uiBuilder?.SetBuildPhaseActive(false);
+        uiBuilder?.SetWindPhase();
+        windController?.StartDisasterWind();
+        Debug.Log("[GameLauncher] Build phase ended, wind started.");
+    }
+
     public void InitScene()
     {
         // Get level config
@@ -44,6 +72,7 @@ public class GameLauncher : MonoBehaviour
         float naturalStrength = level != null ? level.naturalStrength : 2f;
         float windDuration = level != null ? level.windDuration : 10f;
         Vector2 windDir = level != null ? level.windDirection : Vector2.right;
+        float buildTime = level != null ? level.buildTime : 30f;
 
         // 1. Build scene
         sceneBuilder = gameObject.AddComponent<SceneBuilder>();
@@ -85,12 +114,17 @@ public class GameLauncher : MonoBehaviour
         sceneBuilder.WindSystem.windBounds = sceneBuilder.GridBounds;
         windController.Initialize(sceneBuilder.WindSystem, physicsMerge, uiBuilder, sceneBuilder.GroundTopY, sceneBuilder.GridBounds);
         uiBuilder.CreateUI(buildSystem, windController);
-        uiBuilder.SetLevelText($"关卡 {level?.level ?? 1}: {level?.levelName ?? "默认"}");
+        uiBuilder.SetLevelText($"第{level?.level ?? 1}关: {level?.levelName ?? "默认"}");
         uiBuilder.UpdateObjectCounts(buildSystem);
+        uiBuilder.UpdateTimer(buildTime);
         inputHandler.SetUIBuilder(uiBuilder);
 
+        // Start build phase
+        buildTimer = buildTime;
+        currentPhase = Phase.Building;
+
         string levelName = level != null ? level.levelName : "Default";
-        Debug.Log($"[GameLauncher] Level: {levelName}, Grid {rows}x{cols}, wind={windStrength}/{windDuration}s");
+        Debug.Log($"[GameLauncher] Level: {levelName}, Grid {rows}x{cols}, buildTime={buildTime}s, wind={windStrength}/{windDuration}s");
     }
 
     /// <summary>
@@ -98,6 +132,8 @@ public class GameLauncher : MonoBehaviour
     /// </summary>
     public void ReloadScene()
     {
+        currentPhase = Phase.Ended;
+
         // Cleanup old subsystems
         inputHandler?.DisableInput();
         DestroyImmediate(sceneBuilder);
@@ -116,7 +152,6 @@ public class GameLauncher : MonoBehaviour
 
         // Rebuild
         InitScene();
-        GameManager.Instance?.RestartGame();
     }
 
     private void OnGameStart(GameStartEvent evt)
@@ -130,7 +165,10 @@ public class GameLauncher : MonoBehaviour
     private void OnGameStateChanged(GameStateChangedEvent evt)
     {
         if (evt.NewState == GameState.GameOver)
-            windController.StopWind();
+        {
+            currentPhase = Phase.Ended;
+            windController?.StopWind();
+        }
     }
 
     private void OnDestroy()

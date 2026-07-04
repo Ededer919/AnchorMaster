@@ -20,6 +20,9 @@ public class LevelData : ScriptableObject
     public float groundWidth = 30f;
     public float groundHeight = 4f;
 
+    [Header("Build Phase")]
+    public float buildTime = 30f;
+
     [Header("Wind")]
     public float windStrength = 3f;
     public float naturalStrength = 1f;

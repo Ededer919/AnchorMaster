@@ -13,6 +13,7 @@ public class GameUIBuilder : MonoBehaviour
 
     public Text StatusText { get; private set; }
     public Text LevelText { get; private set; }
+    public Text TimerText { get; private set; }
     public Button WindButton { get; private set; }
     public Button BuildModeButton { get; private set; }
     public Button RetryButton { get; private set; }
@@ -29,13 +30,16 @@ public class GameUIBuilder : MonoBehaviour
     {
         public ObjectType type;
         public Button button;
+        public Image iconImage;
         public Text nameText;
         public Text countText;
+        public Text descText;
     }
 
     public void CreateUI(BuildSystem buildSys, DisasterWindController windController)
     {
         buildSystem = buildSys;
+        _ = windController; // wind is now auto-triggered by GameLauncher, not UI
 
         // Ensure EventSystem
         if (FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
@@ -64,7 +68,15 @@ public class GameUIBuilder : MonoBehaviour
 
         // Cache references
         LevelText = Find<Text>(canvasGo, "TopBar/LevelText");
+        TimerText = Find<Text>(canvasGo, "TopBar/TimerText");
         StatusText = Find<Text>(canvasGo, "TopBar/StatusText");
+
+        // Disable decorative full-screen background and sun — they block game world rendering
+        var bgGo = FindGo(canvasGo, "bg");
+        if (bgGo != null) bgGo.SetActive(false);
+        var sunGo = FindGo(canvasGo, "sun");
+        if (sunGo != null) sunGo.SetActive(false);
+
         WindButton = Find<Button>(canvasGo, "WindButton");
         BuildModeButton = Find<Button>(canvasGo, "BuildModeButton");
         ResultPanel = FindGo(canvasGo, "ResultScreen");
@@ -75,17 +87,13 @@ public class GameUIBuilder : MonoBehaviour
 
         // Debug missing refs
         if (LevelText == null) Debug.LogError("[GameUIBuilder] LevelText not found at TopBar/LevelText");
-        if (StatusText == null) Debug.LogError("[GameUIBuilder] StatusText not found at TopBar/StatusText");
-        if (WindButton == null) Debug.LogError("[GameUIBuilder] WindButton not found");
+        if (TimerText == null) Debug.LogError("[GameUIBuilder] TimerText not found at TopBar/TimerText");
 
         // Link to UIManager
         if (UIManager.Instance != null && StatusText != null)
             UIManager.Instance.statusText = StatusText;
 
         // Wire buttons
-        if (WindButton != null)
-            WindButton.onClick.AddListener(windController.ToggleWind);
-
         if (BuildModeButton != null)
         {
             BuildModeButton.onClick.AddListener(() =>
@@ -100,7 +108,7 @@ public class GameUIBuilder : MonoBehaviour
             RetryButton.onClick.AddListener(() =>
             {
                 HideResultScreen();
-                FindFirstObjectByType<GameLauncher>()?.ReloadScene();
+                GameFlowManager.Instance?.ReturnToLevelChoose();
             });
         }
 
@@ -109,7 +117,15 @@ public class GameUIBuilder : MonoBehaviour
             NextButton.onClick.AddListener(() =>
             {
                 HideResultScreen();
-                LevelManager.Instance?.NextLevel();
+                if (LevelManager.Instance != null && !LevelManager.Instance.IsLastLevel())
+                {
+                    LevelManager.Instance.NextLevel();
+                    GameFlowManager.Instance?.StartNextLevel();
+                }
+                else
+                {
+                    GameFlowManager.Instance?.ReturnToLevelChoose();
+                }
             });
         }
 
@@ -133,28 +149,35 @@ public class GameUIBuilder : MonoBehaviour
                 if (cardGo == null) continue;
 
                 var btn = cardGo.GetComponent<Button>();
+                var icon = Find<Image>(cardGo.transform, "Icon");
                 var nameT = Find<Text>(cardGo.transform, "TopRow/Name");
                 if (nameT == null) nameT = Find<Text>(cardGo.transform, "Name");
-                var countT = Find<Text>(cardGo.transform, "Count");
+                var countT = Find<Text>(cardGo.transform, "TopRow/Count");
+                if (countT == null) countT = Find<Text>(cardGo.transform, "Count");
+                var descT = Find<Text>(cardGo.transform, "Desc");
 
-                cards.Add(new ObjectCard { type = type, button = btn, nameText = nameT, countText = countT });
+                var config = ObjectConfig.Get(type);
+                if (nameT != null) nameT.text = config.name;
+                if (descT != null) descT.text = config.description;
+                if (icon != null)
+                {
+                    var prefab = Resources.Load<GameObject>("UI/Prefabs/Objects/" + type.ToString());
+                    if (prefab != null)
+                    {
+                        var sr = prefab.GetComponent<SpriteRenderer>();
+                        if (sr != null && sr.sprite != null) icon.sprite = sr.sprite;
+                    }
+                }
 
-                // Click card → start toolbar drag
+                cards.Add(new ObjectCard { type = type, button = btn, iconImage = icon, nameText = nameT, countText = countT, descText = descT });
+
+                // Click card → auto-spawn near balloon
                 if (btn != null)
                 {
                     var capturedType = type;
                     btn.onClick.AddListener(() =>
                     {
-                        if (inputHandler != null)
-                        {
-                            // Use current mouse position as screen pos
-                            Vector2 mousePos = Input.mousePosition;
-                            inputHandler.StartToolbarDrag(capturedType, mousePos);
-                        }
-                        else
-                        {
-                            buildSystem.SpawnSpecificType(capturedType);
-                        }
+                        buildSystem.SpawnNearBalloon(capturedType);
                     });
                 }
             }
@@ -190,19 +213,42 @@ public class GameUIBuilder : MonoBehaviour
     {
         if (LevelText != null)
             LevelText.text = text;
-        else
-            Debug.LogError("[GameUIBuilder] SetLevelText called but LevelText is null");
+    }
+
+    public void UpdateTimer(float remaining)
+    {
+        if (TimerText != null)
+        {
+            int seconds = Mathf.CeilToInt(remaining);
+            TimerText.text = "建造时间: " + seconds + "s";
+            TimerText.color = seconds <= 5 ? new Color(1f, 0.3f, 0.2f) : new Color(1f, 0.85f, 0.2f);
+        }
+    }
+
+    public void SetWindPhase()
+    {
+        if (TimerText != null)
+        {
+            TimerText.text = "暴风中!";
+            TimerText.color = new Color(1f, 0.3f, 0.2f);
+        }
+        // Disable all card buttons
+        foreach (var card in cards)
+        {
+            if (card.button != null)
+                card.button.interactable = false;
+        }
+    }
+
+    public void SetBuildPhaseActive(bool active)
+    {
+        if (BuildModeButton != null)
+            BuildModeButton.interactable = active;
     }
 
     public void UpdateWindButtonLabel(bool windActive)
     {
-        if (WindButton != null)
-        {
-            SetText(WindButton, windActive ? "停止暴风" : "开始暴风");
-            var img = WindButton.GetComponent<Image>();
-            if (img != null)
-                img.color = windActive ? new Color(0.65f, 0.15f, 0.1f, 0.95f) : new Color(0.15f, 0.45f, 0.15f, 0.95f);
-        }
+        // Wind is now auto-triggered; kept for compatibility
     }
 
     public void ShowResultScreen(bool isWin, string message)
@@ -217,10 +263,17 @@ public class GameUIBuilder : MonoBehaviour
         if (ResultSubtitle != null)
             ResultSubtitle.text = message;
 
+        if (RetryButton != null)
+        {
+            SetText(RetryButton, "返回选关");
+            RetryButton.gameObject.SetActive(true);
+        }
+
         if (NextButton != null)
         {
             bool showNext = isWin && LevelManager.Instance != null && !LevelManager.Instance.IsLastLevel();
             NextButton.gameObject.SetActive(showNext);
+            if (showNext) SetText(NextButton, "下一关");
         }
 
         ResultPanel.SetActive(true);

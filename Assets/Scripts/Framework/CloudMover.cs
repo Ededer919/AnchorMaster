@@ -105,7 +105,7 @@ public class CloudMover : MonoBehaviour
 
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = cloudSprites[Random.Range(0, cloudSprites.Length)];
-        sr.sortingOrder = -2;
+        sr.sortingOrder = 100;
 
         float scale = Random.Range(minScale, maxScale);
         rt.localScale = Vector3.one * scale;

@@ -17,6 +17,7 @@ public class GridInputHandler : MonoBehaviour
     private float cellSize;
     private bool inputSubscribed;
     private bool wantInput;
+    private int gameLayerMask = 1 << 8; // Game layer
 
     // Drag state
     private GridObject dragging;
@@ -88,7 +89,8 @@ public class GridInputHandler : MonoBehaviour
         if (cam == null) return;
 
         Vector2 worldPos = cam.ScreenToWorldPoint(screenPos);
-        Collider2D[] hits = Physics2D.OverlapPointAll(worldPos);
+        Physics2D.SyncTransforms();
+        Collider2D[] hits = Physics2D.OverlapPointAll(worldPos, gameLayerMask);
 
         // Find a draggable GridObject (skip balloons)
         GridObject target = null;
@@ -98,6 +100,25 @@ public class GridInputHandler : MonoBehaviour
             if (target != null && target.objectType != ObjectType.Balloon && target.objectType != ObjectType.Bedrock)
                 break;
             target = null;
+        }
+
+        // Fallback: if no collider hit, find the closest draggable object within half a cell.
+        // Catches objects that are mid-Lerp (collider between cells) or click in collider dead zone.
+        if (target == null)
+        {
+            float maxDist = cellSize * 0.75f;
+            float closestDist = maxDist;
+            foreach (var obj in objectManager.GetAllObjects())
+            {
+                if (obj == null || obj.objectType == ObjectType.Balloon || obj.objectType == ObjectType.Bedrock)
+                    continue;
+                float dist = Vector2.Distance(obj.transform.position, worldPos);
+                if (dist < closestDist)
+                {
+                    closestDist = dist;
+                    target = obj;
+                }
+            }
         }
 
         if (target != null)
@@ -118,7 +139,7 @@ public class GridInputHandler : MonoBehaviour
                 gridSystem.HighlightValidCells(true);
                 foreach (var cell in gridSystem.GetAllCells())
                 {
-                    if (cell != null && !cell.IsEmpty)
+                    if (cell != null && !gridSystem.CanPlaceAt(cell.Row, cell.Col))
                         cell.SetHighlighted(false);
                 }
             }

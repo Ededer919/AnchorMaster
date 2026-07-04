@@ -168,7 +168,12 @@ public class PhysicsMergeSystem : MonoBehaviour
             rb.angularDrag = 0.5f;
 
             var col = obj.gameObject.AddComponent<BoxCollider2D>();
-            col.size = Vector2.one * gridSystem.cellSize * 0.9f;
+            // Account for object scale so world-space collider = cellSize * 0.9
+            var sr = obj.GetComponent<SpriteRenderer>();
+            var lossyScale = obj.transform.lossyScale;
+            float colW = gridSystem.cellSize * 0.9f / Mathf.Abs(lossyScale.x);
+            float colH = gridSystem.cellSize * 0.9f / Mathf.Abs(lossyScale.y);
+            col.size = new Vector2(colW, colH);
             if (config.bounciness > 0f || config.friction > 1f)
             {
                 var mat = new PhysicsMaterial2D(config.name);

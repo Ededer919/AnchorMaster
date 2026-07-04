@@ -114,7 +114,7 @@ public class GameFlowManager : MonoBehaviour
 
         var launcher = FindFirstObjectByType<GameLauncher>();
         if (launcher != null)
-            launcher.InitScene();
+            launcher.ReloadScene();
 
         Debug.Log("[Flow] Game panel shown, level " + (index + 1));
     }
@@ -124,12 +124,18 @@ public class GameFlowManager : MonoBehaviour
         ShowLevelChoose();
     }
 
+    public void StartNextLevel()
+    {
+        if (LevelManager.Instance != null)
+            StartLevel(LevelManager.Instance.CurrentIndex);
+    }
+
     // ========== Helpers ==========
 
     void CloseCurrent()
     {
         if (currentPanel != null)
-            Destroy(currentPanel);
+            DestroyImmediate(currentPanel);
         currentPanel = null;
     }
 

@@ -19,6 +19,7 @@ MonoBehaviour:
   cellSize: 0.5
   groundWidth: 80
   groundHeight: 10
+  buildTime: 50
   windStrength: 12
   naturalStrength: 6
   windDuration: 15

@@ -142,6 +142,92 @@ public class BuildSystem : MonoBehaviour
         Debug.Log($"[Build] Drag cancelled: {obj.displayName} ({obj.objectType}), restored: {GetAvailable(obj.objectType)}");
     }
 
+    /// <summary>
+    /// Spawns an object at the nearest empty cell to the balloon(s).
+    /// Called when player clicks a toolbar card.
+    /// </summary>
+    public bool SpawnNearBalloon(ObjectType type)
+    {
+        if (type == ObjectType.Balloon)
+        {
+            UIManager.Instance?.UpdateStatus("气球已自动生成在网格上!");
+            return false;
+        }
+
+        int available = GetAvailable(type);
+        if (available <= 0)
+        {
+            UIManager.Instance?.UpdateStatus($"{ObjectConfig.Get(type).name} 已用完!");
+            return false;
+        }
+
+        // Find balloon positions
+        var grid = sceneBuilder.GridSystem;
+        var objs = sceneBuilder.ObjectManager.GetAllObjects();
+        Vector2 balloonCenter = Vector2.zero;
+        int balloonCount = 0;
+        foreach (var go in objs)
+        {
+            if (go != null && go.objectType == ObjectType.Balloon)
+            {
+                balloonCenter += (Vector2)go.transform.position;
+                balloonCount++;
+            }
+        }
+
+        if (balloonCount == 0)
+        {
+            UIManager.Instance?.UpdateStatus("未找到气球!");
+            return false;
+        }
+
+        balloonCenter /= balloonCount;
+
+        // Search for nearest empty cell to balloon center
+        Vector2Int bestCell = new Vector2Int(-1, -1);
+        float minDist = float.MaxValue;
+
+        for (int r = 0; r < grid.Rows; r++)
+        {
+            for (int c = 0; c < grid.Cols; c++)
+            {
+                if (!grid.CanPlaceAt(r, c)) continue;
+
+                var cell = grid.GetCell(r, c);
+                if (cell == null) continue;
+
+                float dist = Vector2.Distance(balloonCenter, cell.transform.position);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    bestCell = new Vector2Int(c, r);
+                }
+            }
+        }
+
+        if (bestCell.x < 0)
+        {
+            UIManager.Instance?.UpdateStatus("气球周围已无空位!");
+            return false;
+        }
+
+        // Create and place the object
+        var config = ObjectConfig.Get(type);
+        Vector3 worldPos = grid.GridToWorldPosition(bestCell.y, bestCell.x);
+        var newObj = sceneBuilder.CreateObject(type, config.name, config.color, worldPos);
+        newObj.PlaceOnGrid(grid, bestCell.y, bestCell.x);
+        newObj.receiveWind = false;
+
+        typeCounts[(int)type]++;
+
+        var ui = FindFirstObjectByType<GameUIBuilder>();
+        if (ui != null) ui.UpdateObjectCounts(this);
+
+        UIManager.Instance?.UpdateStatus($"{config.name} 已放置在 ({bestCell.y},{bestCell.x})");
+        Debug.Log($"[Build] SpawnNearBalloon: {config.name} at ({bestCell.y},{bestCell.x}), remaining: {GetAvailable(type)}");
+        return true;
+    }
+
     // Legacy support for SpawnSpecificType (used by old UI)
     public void SpawnSpecificType(ObjectType type)
     {
