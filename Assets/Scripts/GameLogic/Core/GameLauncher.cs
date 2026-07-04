@@ -128,13 +128,13 @@ public class GameLauncher : MonoBehaviour
     }
 
     /// <summary>
-    /// Called by LevelManager to rebuild scene for a new level.
+    /// Destroys all game subsystems and the GameWorld. Called when leaving the game page.
+    /// Does NOT destroy the GamePanel — that is managed by GameFlowManager.
     /// </summary>
-    public void ReloadScene()
+    public void CleanupScene()
     {
         currentPhase = Phase.Ended;
 
-        // Cleanup old subsystems
         inputHandler?.DisableInput();
         DestroyImmediate(sceneBuilder);
         DestroyImmediate(physicsMerge);
@@ -143,14 +143,16 @@ public class GameLauncher : MonoBehaviour
         DestroyImmediate(uiBuilder);
         DestroyImmediate(windController);
 
-        // Destroy old GameWorld
         var oldWorld = GameObject.Find("GameWorld");
         if (oldWorld != null) DestroyImmediate(oldWorld);
+    }
 
-        var oldCanvas = GameObject.Find("GameUICanvas");
-        if (oldCanvas != null) DestroyImmediate(oldCanvas);
-
-        // Rebuild
+    /// <summary>
+    /// Called by GameFlowManager to rebuild scene for a new level.
+    /// </summary>
+    public void ReloadScene()
+    {
+        CleanupScene();
         InitScene();
     }
 

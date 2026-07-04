@@ -4,23 +4,16 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
 /// <summary>
-/// Loads game UI from prefab, caches references, wires button events.
+/// Wires up the GamePanel created by GameFlowManager: caches references, binds button events.
 /// Cards trigger toolbar drag via GridInputHandler.StartToolbarDrag.
 /// </summary>
 public class GameUIBuilder : MonoBehaviour
 {
-    private const string PREFAB_PATH = "UI/Panels/Game";
-
     public Text StatusText { get; private set; }
     public Text LevelText { get; private set; }
     public Text TimerText { get; private set; }
     public Button WindButton { get; private set; }
     public Button BuildModeButton { get; private set; }
-    public Button RetryButton { get; private set; }
-    public Button NextButton { get; private set; }
-    public GameObject ResultPanel { get; private set; }
-    public Text ResultTitle { get; private set; }
-    public Text ResultSubtitle { get; private set; }
 
     private readonly List<ObjectCard> cards = new List<ObjectCard>();
     private BuildSystem buildSystem;
@@ -49,21 +42,12 @@ public class GameUIBuilder : MonoBehaviour
             esGo.AddComponent<StandaloneInputModule>();
         }
 
-        // Find existing GamePanel (loaded by GameFlowManager) or load prefab
+        // Use the GamePanel created by GameFlowManager — do not instantiate our own
         GameObject canvasGo = GameObject.Find("GamePanel");
-        if (canvasGo == null) canvasGo = GameObject.Find("Game");
-
         if (canvasGo == null)
         {
-            // Load prefab ourselves
-            var prefab = Resources.Load<GameObject>(PREFAB_PATH);
-            if (prefab == null)
-            {
-                Debug.LogError("[GameUIBuilder] Prefab not found: " + PREFAB_PATH);
-                return;
-            }
-            canvasGo = Instantiate(prefab);
-            canvasGo.name = "GamePanel";
+            Debug.LogError("[GameUIBuilder] GamePanel not found — GameFlowManager should create it first");
+            return;
         }
 
         // Cache references
@@ -79,11 +63,6 @@ public class GameUIBuilder : MonoBehaviour
 
         WindButton = Find<Button>(canvasGo, "WindButton");
         BuildModeButton = Find<Button>(canvasGo, "BuildModeButton");
-        ResultPanel = FindGo(canvasGo, "ResultScreen");
-        ResultTitle = Find<Text>(canvasGo, "ResultScreen/ResultCard/ResultTitle");
-        ResultSubtitle = Find<Text>(canvasGo, "ResultScreen/ResultCard/ResultSubtitle");
-        RetryButton = Find<Button>(canvasGo, "ResultScreen/ResultCard/ButtonRow/RetryButton");
-        NextButton = Find<Button>(canvasGo, "ResultScreen/ResultCard/ButtonRow/NextButton");
 
         // Debug missing refs
         if (LevelText == null) Debug.LogError("[GameUIBuilder] LevelText not found at TopBar/LevelText");
@@ -100,32 +79,6 @@ public class GameUIBuilder : MonoBehaviour
             {
                 buildSystem.ToggleMode();
                 SetText(BuildModeButton, buildSystem.IsBuildMode ? "自由模式" : "网格模式");
-            });
-        }
-
-        if (RetryButton != null)
-        {
-            RetryButton.onClick.AddListener(() =>
-            {
-                HideResultScreen();
-                GameFlowManager.Instance?.ReturnToLevelChoose();
-            });
-        }
-
-        if (NextButton != null)
-        {
-            NextButton.onClick.AddListener(() =>
-            {
-                HideResultScreen();
-                if (LevelManager.Instance != null && !LevelManager.Instance.IsLastLevel())
-                {
-                    LevelManager.Instance.NextLevel();
-                    GameFlowManager.Instance?.StartNextLevel();
-                }
-                else
-                {
-                    GameFlowManager.Instance?.ReturnToLevelChoose();
-                }
             });
         }
 
@@ -183,11 +136,7 @@ public class GameUIBuilder : MonoBehaviour
             }
         }
 
-        // Hide result screen
-        if (ResultPanel != null)
-            ResultPanel.SetActive(false);
-
-        Debug.Log("[GameUIBuilder] UI loaded from prefab.");
+        Debug.Log("[GameUIBuilder] UI loaded.");
     }
 
     public void UpdateObjectCounts(BuildSystem buildSys)
@@ -249,39 +198,6 @@ public class GameUIBuilder : MonoBehaviour
     public void UpdateWindButtonLabel(bool windActive)
     {
         // Wind is now auto-triggered; kept for compatibility
-    }
-
-    public void ShowResultScreen(bool isWin, string message)
-    {
-        if (ResultPanel == null) return;
-
-        if (ResultTitle != null)
-        {
-            ResultTitle.text = isWin ? "胜利!" : "失败!";
-            ResultTitle.color = isWin ? new Color(0.3f, 1f, 0.4f) : new Color(1f, 0.3f, 0.3f);
-        }
-        if (ResultSubtitle != null)
-            ResultSubtitle.text = message;
-
-        if (RetryButton != null)
-        {
-            SetText(RetryButton, "返回选关");
-            RetryButton.gameObject.SetActive(true);
-        }
-
-        if (NextButton != null)
-        {
-            bool showNext = isWin && LevelManager.Instance != null && !LevelManager.Instance.IsLastLevel();
-            NextButton.gameObject.SetActive(showNext);
-            if (showNext) SetText(NextButton, "下一关");
-        }
-
-        ResultPanel.SetActive(true);
-    }
-
-    public void HideResultScreen()
-    {
-        if (ResultPanel != null) ResultPanel.SetActive(false);
     }
 
     // === Helpers ===

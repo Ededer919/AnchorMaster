@@ -129,7 +129,7 @@ public class DisasterWindController : MonoBehaviour
         physicsMerge.DissolvePhysics();
 
         UIManager.Instance?.UpdateStatus("气球保住了! 胜利!");
-        uiBuilder?.ShowResultScreen(true, "气球存活! 通关!");
+        GameFlowManager.Instance?.ShowResult(true, "气球存活! 通关!");
         Debug.Log("[Wind] Victory — balloons survived.");
     }
 
@@ -142,7 +142,7 @@ public class DisasterWindController : MonoBehaviour
         physicsMerge.DissolvePhysics();
 
         UIManager.Instance?.UpdateStatus("气球飞走了! 失败!");
-        uiBuilder?.ShowResultScreen(false, "气球被吹出网格! 锚固失败!");
+        GameFlowManager.Instance?.ShowResult(false, "气球被吹出网格! 锚固失败!");
         Debug.Log("[Wind] Failed — balloon blown out of grid.");
     }
 
