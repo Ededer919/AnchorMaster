@@ -94,6 +94,11 @@ public class SceneBuilder : MonoBehaviour
         ObjectsParent = objsGo.transform;
         ObjectManager.SetObjectsParent(ObjectsParent);
         CreateInitialObjects();
+
+        // Place bedrock on left and right edges (after ObjectsParent is ready)
+        CreateBedrock();
+
+        // Place balloons (interior only, not on edges)
         CreateBalloons();
 
         var cam = Camera.main;
@@ -119,20 +124,48 @@ public class SceneBuilder : MonoBehaviour
     {
         var config = ObjectConfig.Get(type);
 
-        var go = new GameObject(name);
-        go.transform.SetParent(ObjectsParent, false);
+        // Try loading prefab from Resources/new/wa/
+        string prefabPath = "new/wa/" + type.ToString();
+        var prefab = Resources.Load<GameObject>(prefabPath);
+
+        GameObject go;
+        GridObject obj;
+
+        if (prefab != null)
+        {
+            // Instantiate from prefab
+            go = Instantiate(prefab, ObjectsParent);
+            go.name = name;
+
+            var sr = go.GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                if (sr.sprite == null) sr.sprite = sharedSprite;
+                sr.color = color;
+                sr.sortingOrder = 10;
+            }
+        }
+        else
+        {
+            // Fallback: create from code
+            go = new GameObject(name);
+            go.transform.SetParent(ObjectsParent, false);
+
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sharedSprite;
+            sr.color = color;
+            sr.sortingOrder = 10;
+
+            var col = go.AddComponent<BoxCollider2D>();
+            col.size = Vector2.one * 0.9f;
+
+            go.AddComponent<GridObject>();
+        }
+
         go.transform.position = position;
         go.transform.localScale = Vector3.one * cellSize;
 
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = sharedSprite;
-        sr.color = color;
-        sr.sortingOrder = 10;
-
-        var col = go.AddComponent<BoxCollider2D>();
-        col.size = Vector2.one * 0.9f;
-
-        var obj = go.AddComponent<GridObject>();
+        obj = go.GetComponent<GridObject>();
         obj.objectID = name.ToLower() + "_" + spawnedCount++;
         obj.displayName = name;
         obj.objectType = type;
@@ -208,21 +241,55 @@ public class SceneBuilder : MonoBehaviour
     }
 
     /// <summary>
-    /// Randomly places balloons on the grid as protection targets.
+    /// Places bedrock blocks randomly on left and right edges of the grid.
+    /// </summary>
+    private void CreateBedrock()
+    {
+        int edgeColCount = Mathf.Max(1, rows / 3); // ~1/3 of edge rows get bedrock
+
+        // Left edge (col 0)
+        for (int i = 0; i < edgeColCount; i++)
+        {
+            int r = Random.Range(0, rows);
+            if (GridSystem.GetCell(r, 0) != null && GridSystem.GetCell(r, 0).IsEmpty)
+            {
+                var obj = CreateObject(ObjectType.Bedrock, "基岩", ObjectConfig.Get(ObjectType.Bedrock).color,
+                    GridSystem.GridToWorldPosition(r, 0));
+                obj.PlaceOnGrid(GridSystem, r, 0);
+            }
+        }
+
+        // Right edge (col cols-1)
+        for (int i = 0; i < edgeColCount; i++)
+        {
+            int r = Random.Range(0, rows);
+            if (GridSystem.GetCell(r, cols - 1) != null && GridSystem.GetCell(r, cols - 1).IsEmpty)
+            {
+                var obj = CreateObject(ObjectType.Bedrock, "基岩", ObjectConfig.Get(ObjectType.Bedrock).color,
+                    GridSystem.GridToWorldPosition(r, cols - 1));
+                obj.PlaceOnGrid(GridSystem, r, cols - 1);
+            }
+        }
+
+        Debug.Log($"[SceneBuilder] Bedrock placed on edges ({edgeColCount * 2} max)");
+    }
+
+    /// <summary>
+    /// Randomly places balloons in the interior of the grid (not on edges).
     /// </summary>
     private void CreateBalloons()
     {
         for (int i = 0; i < balloonCount; i++)
         {
-            // Find a random empty cell
             int attempts = 0;
             int maxAttempts = rows * cols;
             int r, c;
 
             do
             {
-                r = Random.Range(0, rows);
-                c = Random.Range(0, cols);
+                // Interior only: not on any edge row/col
+                r = Random.Range(1, Mathf.Max(2, rows - 1));
+                c = Random.Range(1, Mathf.Max(2, cols - 1));
                 attempts++;
             }
             while (!GridSystem.CanPlaceAt(r, c) && attempts < maxAttempts);

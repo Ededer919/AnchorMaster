@@ -150,6 +150,9 @@ public class PhysicsMergeSystem : MonoBehaviour
             // Skip staged objects (not yet placed on grid — immune to wind)
             if (buildSystem != null && buildSystem.IsStaged(obj)) continue;
 
+            // Skip Bedrock — immovable terrain, not affected by wind or physics
+            if (obj.objectType == ObjectType.Bedrock) continue;
+
             var config = ObjectConfig.Get(obj.objectType);
 
             if (obj.IsPlaced)

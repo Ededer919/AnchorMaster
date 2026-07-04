@@ -2,8 +2,8 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Build system: spawns objects by type from UI cards. Staged objects immune to wind.
-/// Balloons auto-placed on grid center as protection targets.
+/// Build system: drag-from-toolbar spawning. Clicking a card starts dragging a new object.
+/// Quota consumed on placement; cancelled drags return the quota.
 /// </summary>
 public class BuildSystem : MonoBehaviour
 {
@@ -14,6 +14,10 @@ public class BuildSystem : MonoBehaviour
     private int spawnSlot;
 
     private List<GridObject> staged = new List<GridObject>();
+
+    // Pending drag: object created but not yet placed
+    private GridObject pendingDrag;
+    private ObjectType pendingType;
 
     public bool IsBuildMode { get; private set; }
 
@@ -47,38 +51,124 @@ public class BuildSystem : MonoBehaviour
         return typeCounts[(int)type];
     }
 
-    public void SpawnSpecificType(ObjectType type)
+    /// <summary>
+    /// Returns the remaining available count for a type (quota - used).
+    /// </summary>
+    public int GetAvailable(ObjectType type)
     {
-        int quota = GetQuota(type);
-        if (typeCounts[(int)type] >= quota)
+        return GetQuota(type) - GetCount(type);
+    }
+
+    /// <summary>
+    /// Called when user clicks a card in the toolbar. Creates a new object at mouse position
+    /// and starts dragging it. Returns the object or null if quota exhausted.
+    /// </summary>
+    public GridObject BeginDragFromToolbar(ObjectType type, Vector3 worldPos)
+    {
+        if (type == ObjectType.Balloon)
         {
-            UIManager.Instance?.UpdateStatus($"{ObjectConfig.Get(type).name} 已达上限!");
-            return;
+            UIManager.Instance?.UpdateStatus("气球已自动生成在网格上!");
+            return null;
+        }
+
+        int available = GetAvailable(type);
+        if (available <= 0)
+        {
+            UIManager.Instance?.UpdateStatus($"{ObjectConfig.Get(type).name} 已用完!");
+            return null;
         }
 
         var config = ObjectConfig.Get(type);
         string name = config.name;
-        Color color = config.color;
 
-        // Balloons are auto-placed by SceneBuilder, skip if user tries to spawn
+        // Create object at mouse position
+        var obj = sceneBuilder.CreateObject(type, name, config.color, worldPos);
+        obj.IsDragging = true;
+        obj.receiveWind = false;
+        staged.Add(obj);
+
+        pendingDrag = obj;
+        pendingType = type;
+
+        // Consume quota immediately (will restore on cancel)
+        typeCounts[(int)type]++;
+
+        var ui = FindFirstObjectByType<GameUIBuilder>();
+        if (ui != null) ui.UpdateObjectCounts(this);
+
+        Debug.Log($"[Build] Drag started: {name} ({type}), remaining: {GetAvailable(type)}");
+        return obj;
+    }
+
+    /// <summary>
+    /// Called when a toolbar-dragged object is successfully placed on grid.
+    /// </summary>
+    public void ConfirmDragPlacement(GridObject obj)
+    {
+        if (staged.Contains(obj))
+            staged.Remove(obj);
+        obj.receiveWind = true;
+
+        pendingDrag = null;
+
+        var ui = FindFirstObjectByType<GameUIBuilder>();
+        if (ui != null) ui.UpdateObjectCounts(this);
+
+        Debug.Log($"[Build] Placed: {obj.displayName} ({obj.objectType}), remaining: {GetAvailable(obj.objectType)}");
+    }
+
+    /// <summary>
+    /// Called when a toolbar-dragged object is cancelled (not placed).
+    /// Restores the quota and destroys the object.
+    /// </summary>
+    public void CancelDrag(GridObject obj)
+    {
+        if (obj == null) return;
+
+        // Restore quota
+        typeCounts[(int)obj.objectType]--;
+
+        if (staged.Contains(obj))
+            staged.Remove(obj);
+
+        if (obj == pendingDrag)
+            pendingDrag = null;
+
+        Destroy(obj.gameObject);
+
+        var ui = FindFirstObjectByType<GameUIBuilder>();
+        if (ui != null) ui.UpdateObjectCounts(this);
+
+        Debug.Log($"[Build] Drag cancelled: {obj.displayName} ({obj.objectType}), restored: {GetAvailable(obj.objectType)}");
+    }
+
+    // Legacy support for SpawnSpecificType (used by old UI)
+    public void SpawnSpecificType(ObjectType type)
+    {
         if (type == ObjectType.Balloon)
         {
             UIManager.Instance?.UpdateStatus("气球已自动生成在网格上!");
             return;
         }
 
+        int available = GetAvailable(type);
+        if (available <= 0)
+        {
+            UIManager.Instance?.UpdateStatus($"{ObjectConfig.Get(type).name} 已用完!");
+            return;
+        }
+
+        var config = ObjectConfig.Get(type);
         Vector3 startPos = sceneBuilder.GetGridTopLeft();
         Vector3 pos = startPos + new Vector3(spawnSlot * sceneBuilder.cellSize * 1.1f, 0, 0);
         spawnSlot++;
 
-        var obj = sceneBuilder.CreateObject(type, name, color, pos);
+        var obj = sceneBuilder.CreateObject(type, config.name, config.color, pos);
         typeCounts[(int)type]++;
-
         staged.Add(obj);
         obj.receiveWind = false;
 
-        Debug.Log($"[Build] Spawned {name} ({type}), count={typeCounts[(int)type]}/{quota}");
-        UIManager.Instance?.UpdateStatus($"{name} 已生成 ({typeCounts[(int)type]}/{quota})");
+        Debug.Log($"[Build] Spawned {config.name} ({type}), count={typeCounts[(int)type]}/{GetQuota(type)}");
 
         var ui = FindFirstObjectByType<GameUIBuilder>();
         if (ui != null) ui.UpdateObjectCounts(this);

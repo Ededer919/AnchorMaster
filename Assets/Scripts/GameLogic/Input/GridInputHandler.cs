@@ -2,17 +2,26 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 /// <summary>
-/// Handles mouse drag input for GridObjects. Supports grid snap and free build modes.
+/// Handles mouse drag input. Supports:
+/// 1. Dragging existing GridObjects on the grid
+/// 2. Dragging new objects from the UI toolbar (via BuildSystem.BeginDragFromToolbar)
 /// </summary>
 public class GridInputHandler : MonoBehaviour
 {
     private GridSystem gridSystem;
     private GridObjectManager objectManager;
     private BuildSystem buildSystem;
+    private GameUIBuilder uiBuilder;
+    private Camera cam;
     private float groundTopY;
     private float cellSize;
     private bool inputSubscribed;
     private bool wantInput;
+
+    // Drag state
+    private GridObject dragging;
+    private Vector3 dragOffset;
+    private bool fromToolbar;
 
     public void Initialize(GridSystem grid, GridObjectManager manager, float groundY, float cellSz)
     {
@@ -20,11 +29,17 @@ public class GridInputHandler : MonoBehaviour
         objectManager = manager;
         groundTopY = groundY;
         cellSize = cellSz;
+        cam = Camera.main;
     }
 
     public void SetBuildSystem(BuildSystem build)
     {
         buildSystem = build;
+    }
+
+    public void SetUIBuilder(GameUIBuilder ui)
+    {
+        uiBuilder = ui;
     }
 
     public void EnableInput()
@@ -63,37 +78,35 @@ public class GridInputHandler : MonoBehaviour
         }
     }
 
-    private GridObject dragging;
-    private Vector3 dragOffset;
-    private bool buildMode;
-
-    public void SetBuildMode(bool mode)
-    {
-        buildMode = mode;
-    }
-
     private void OnClickDown(Vector2 screenPos)
     {
         var es = FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
         if (es != null && es.IsPointerOverGameObject())
             return;
 
-        Vector2 pos = Camera.main.ScreenToWorldPoint(screenPos);
-        Collider2D[] hits = Physics2D.OverlapPointAll(pos);
+        if (cam == null) cam = Camera.main;
+        if (cam == null) return;
 
+        Vector2 worldPos = cam.ScreenToWorldPoint(screenPos);
+        Collider2D[] hits = Physics2D.OverlapPointAll(worldPos);
+
+        // Find a draggable GridObject (skip balloons)
         GridObject target = null;
         foreach (var hit in hits)
         {
             target = hit.GetComponent<GridObject>();
-            if (target != null && target.objectType != ObjectType.Balloon) break;
+            if (target != null && target.objectType != ObjectType.Balloon && target.objectType != ObjectType.Bedrock)
+                break;
             target = null;
         }
 
         if (target != null)
         {
+            // Drag existing object
             dragging = target;
             dragging.IsDragging = true;
-            dragOffset = (Vector3)pos - dragging.transform.position;
+            dragOffset = (Vector3)worldPos - dragging.transform.position;
+            fromToolbar = false;
 
             if (dragging.IsPlaced)
                 dragging.RemoveFromGrid();
@@ -118,12 +131,12 @@ public class GridInputHandler : MonoBehaviour
     {
         if (dragging == null) return;
 
-        Vector2 pos = Camera.main.ScreenToWorldPoint(screenPos);
-        dragging.transform.position = (Vector3)pos - dragOffset;
+        Vector2 worldPos = cam.ScreenToWorldPoint(screenPos);
+        dragging.transform.position = (Vector3)worldPos - dragOffset;
 
-        if (!buildMode)
+        if (!buildMode && !fromToolbar)
         {
-            Vector2Int nearest = objectManager.FindNearestEmptyCell(pos);
+            Vector2Int nearest = objectManager.FindNearestEmptyCell(worldPos);
             if (nearest.x >= 0)
             {
                 gridSystem.HighlightValidCells(false);
@@ -138,33 +151,64 @@ public class GridInputHandler : MonoBehaviour
     {
         if (dragging == null) return;
 
-        Vector2 pos = Camera.main.ScreenToWorldPoint(screenPos);
+        Vector2 worldPos = cam.ScreenToWorldPoint(screenPos);
         dragging.IsDragging = false;
 
         if (buildMode)
         {
-            float clampedY = Mathf.Max(pos.y, groundTopY + cellSize * 0.5f);
-            dragging.transform.position = new Vector3(pos.x, clampedY, 0);
-            Debug.Log($"[Input] Free placed {dragging.displayName} at ({pos.x:F1}, {clampedY:F1})");
-            UIManager.Instance?.UpdateStatus($"{dragging.displayName} placed at ({pos.x:F1}, {clampedY:F1})");
+            float clampedY = Mathf.Max(worldPos.y, groundTopY + cellSize * 0.5f);
+            dragging.transform.position = new Vector3(worldPos.x, clampedY, 0);
+            buildSystem?.OnObjectPlaced(dragging);
+            UIManager.Instance?.UpdateStatus($"{dragging.displayName} 已放置");
         }
         else
         {
-            Vector2Int cell = objectManager.FindNearestEmptyCell(pos);
+            Vector2Int cell = objectManager.FindNearestEmptyCell(worldPos);
             if (cell.x >= 0)
             {
                 bool placed = dragging.PlaceOnGrid(gridSystem, cell.y, cell.x);
                 if (placed)
                 {
                     buildSystem?.OnObjectPlaced(dragging);
-                    Debug.Log($"[Input] Snapped {dragging.displayName} to ({cell.y}, {cell.x})");
-                    UIManager.Instance?.UpdateStatus($"{dragging.displayName} at grid ({cell.y}, {cell.x})");
+                    UIManager.Instance?.UpdateStatus($"{dragging.displayName} 放置在 ({cell.y},{cell.x})");
+                }
+            }
+            else
+            {
+                // No valid cell — if from toolbar, cancel (refund); if existing, leave in place
+                if (fromToolbar)
+                {
+                    buildSystem?.CancelDrag(dragging);
                 }
             }
             gridSystem.HighlightValidCells(false);
         }
 
         dragging = null;
+        fromToolbar = false;
+    }
+
+    private bool buildMode;
+    public void SetBuildMode(bool mode) { buildMode = mode; }
+
+    /// <summary>
+    /// Called by GameUIBuilder when a toolbar card is clicked.
+    /// Creates a new object and starts dragging it.
+    /// </summary>
+    public bool StartToolbarDrag(ObjectType type, Vector2 screenPos)
+    {
+        if (cam == null) cam = Camera.main;
+        Vector3 worldPos = cam.ScreenToWorldPoint(screenPos);
+
+        var obj = buildSystem?.BeginDragFromToolbar(type, worldPos);
+        if (obj == null) return false;
+
+        dragging = obj;
+        dragging.IsDragging = true;
+        dragOffset = Vector3.zero;
+        fromToolbar = true;
+
+        return true;
     }
 
     private void OnDestroy()

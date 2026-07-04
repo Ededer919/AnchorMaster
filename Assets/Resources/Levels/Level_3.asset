@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   level: 3
   levelName: "\u72C2\u98CE\u5CE1"
-  rows: 10
-  cols: 15
-  cellSize: 1
+  rows: 20
+  cols: 30
+  cellSize: 0.5
   groundWidth: 50
   groundHeight: 6
   windStrength: 7
@@ -34,4 +34,6 @@ MonoBehaviour:
   - type: 3
     count: 3
   - type: 4
+    count: 0
+  - type: 5
     count: 2

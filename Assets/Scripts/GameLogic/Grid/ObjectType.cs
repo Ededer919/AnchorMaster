@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Types of grid objects. 5 types total.
+/// Types of grid objects. 6 types total.
 /// </summary>
 public enum ObjectType
 {
@@ -9,7 +9,8 @@ public enum ObjectType
     StoneWall,      // 1 — heavy wind-resistant wall
     SteelBeam,      // 2 — medium weight structural beam
     BrickWall,      // 3 — medium weight wall, decent wind resistance
-    Balloon         // 4 — protection target, if blown out of grid = fail
+    Bedrock,        // 4 — indestructible terrain block, auto-placed on map edges
+    Balloon         // 5 — protection target, if blown out of grid = fail
 }
 
 /// <summary>
@@ -44,7 +45,10 @@ public static class ObjectConfig
         // 3: BrickWall
         new Config { name = "砖墙", description = "中等坚固\n抗风良好", color = new Color(0.7f, 0.35f, 0.25f, 1f),
             mass = 3.5f, windSensitivity = 0.2f, gravityScale = 1f, bounciness = 0f, friction = 0.7f, maxCount = 6 },
-        // 4: Balloon (protection target)
+        // 4: Bedrock — auto-placed, not in toolbar
+        new Config { name = "基岩", description = "不可摧毁地形\n随机生成在边缘", color = new Color(0.35f, 0.3f, 0.25f, 1f),
+            mass = 100f, windSensitivity = 0f, gravityScale = 0f, bounciness = 0f, friction = 1f, maxCount = 0 },
+        // 5: Balloon (protection target)
         new Config { name = "气球", description = "保护目标\n飞出网格即失败", color = new Color(0.95f, 0.6f, 0.1f, 1f),
             mass = 0.3f, windSensitivity = 1f, gravityScale = -0.3f, bounciness = 0f, friction = 0.3f, maxCount = 3 },
     };

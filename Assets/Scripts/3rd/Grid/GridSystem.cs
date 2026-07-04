@@ -110,9 +110,32 @@ public class GridSystem : MonoBehaviour
         return cell != null && !cell.IsEmpty;
     }
 
+    /// <summary>
+    /// Returns true if any Balloon is within 1 cell (8-directional) of the given position.
+    /// </summary>
+    public bool IsNearBalloon(int row, int col)
+    {
+        for (int dr = -1; dr <= 1; dr++)
+        {
+            for (int dc = -1; dc <= 1; dc++)
+            {
+                if (dr == 0 && dc == 0) continue;
+                var cell = GetCell(row + dr, col + dc);
+                if (cell != null && !cell.IsEmpty && cell.OccupiedObject != null
+                    && cell.OccupiedObject.objectType == ObjectType.Balloon)
+                    return true;
+            }
+        }
+        return false;
+    }
+
     public bool CanPlaceAt(int row, int col)
     {
-        return row >= 0 && row < rows && col >= 0 && col < cols && GetCell(row, col) != null && GetCell(row, col).IsEmpty;
+        if (row < 0 || row >= rows || col < 0 || col >= cols) return false;
+        GridCell cell = GetCell(row, col);
+        if (cell == null || !cell.IsEmpty) return false;
+        if (IsNearBalloon(row, col)) return false;
+        return true;
     }
 
     public List<GridCell> GetEmptyCells()

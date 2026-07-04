@@ -86,6 +86,7 @@ public class GameLauncher : MonoBehaviour
         uiBuilder.CreateUI(buildSystem, windController);
         uiBuilder.SetLevelText($"关卡 {level?.level ?? 1}: {level?.levelName ?? "默认"}");
         uiBuilder.UpdateObjectCounts(buildSystem);
+        inputHandler.SetUIBuilder(uiBuilder);
 
         string levelName = level != null ? level.levelName : "Default";
         Debug.Log($"[GameLauncher] Level: {levelName}, Grid {rows}x{cols}, wind={windStrength}/{windDuration}s");

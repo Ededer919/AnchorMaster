@@ -55,20 +55,24 @@ public class GridObjectManager : MonoBehaviour
         if (gridSystem == null)
             return new Vector2Int(-1, -1);
 
-        List<GridCell> emptyCells = gridSystem.GetEmptyCells();
-        if (emptyCells.Count == 0)
-            return new Vector2Int(-1, -1);
-
         GridCell nearest = null;
         float minDist = float.MaxValue;
 
-        foreach (var cell in emptyCells)
+        for (int r = 0; r < gridSystem.Rows; r++)
         {
-            float dist = Vector2.Distance(worldPos, cell.transform.position);
-            if (dist < minDist)
+            for (int c = 0; c < gridSystem.Cols; c++)
             {
-                minDist = dist;
-                nearest = cell;
+                if (!gridSystem.CanPlaceAt(r, c)) continue;
+
+                var cell = gridSystem.GetCell(r, c);
+                if (cell == null) continue;
+
+                float dist = Vector2.Distance(worldPos, cell.transform.position);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    nearest = cell;
+                }
             }
         }
 
@@ -134,7 +138,8 @@ public class GridObjectManager : MonoBehaviour
 
         foreach (var obj in objects)
         {
-            if (obj == null || !obj.IsPlaced || visited.Contains(obj))
+            // Skip bedrock — immovable, not part of connected groups
+            if (obj == null || !obj.IsPlaced || visited.Contains(obj) || obj.objectType == ObjectType.Bedrock)
                 continue;
 
             var group = new List<GridObject>();
