@@ -8,11 +8,18 @@ public class UIManager : MonoBehaviour
     [Header("UI Panels")]
     public GameObject gamePanel;
     public GameObject winPanel;
+    public GameObject losePanel;
 
     [Header("UI Texts")]
     public Text statusText;
-    public Text moveCountText;
+    public Text anchorCountText;
+    public Text levelText;
     public Text timerText;
+
+    [Header("UI Buttons")]
+    public Button confirmButton;
+    public Button restartButton;
+    public Button nextLevelButton;
 
     private void Awake()
     {
@@ -26,6 +33,26 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        if (confirmButton != null)
+        {
+            confirmButton.onClick.AddListener(OnConfirmClicked);
+        }
+
+        if (restartButton != null)
+        {
+            restartButton.onClick.AddListener(OnRestartClicked);
+        }
+
+        if (nextLevelButton != null)
+        {
+            nextLevelButton.onClick.AddListener(OnNextLevelClicked);
+        }
+
+        EnableConfirmButton(false);
+    }
+
     public void UpdateStatus(string message)
     {
         if (statusText != null)
@@ -34,11 +61,19 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void UpdateMoveCount(int count)
+    public void UpdateAnchorCount(int current, int max)
     {
-        if (moveCountText != null)
+        if (anchorCountText != null)
         {
-            moveCountText.text = "Moves: " + count;
+            anchorCountText.text = "Anchors: " + current + " / " + max;
+        }
+    }
+
+    public void UpdateLevel(int level)
+    {
+        if (levelText != null)
+        {
+            levelText.text = "Level " + level;
         }
     }
 
@@ -48,23 +83,49 @@ public class UIManager : MonoBehaviour
         {
             int minutes = (int)(time / 60);
             int seconds = (int)(time % 60);
-            timerText.text = string.Format("Time: {0:00}:{1:00}", minutes, seconds);
+            timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
         }
+    }
+
+    public void EnableConfirmButton(bool enable)
+    {
+        if (confirmButton != null)
+        {
+            confirmButton.interactable = enable;
+        }
+    }
+
+    public void ShowGamePanel()
+    {
+        if (gamePanel != null) gamePanel.SetActive(true);
+        if (winPanel != null) winPanel.SetActive(false);
+        if (losePanel != null) losePanel.SetActive(false);
     }
 
     public void ShowWinPanel()
     {
-        if (winPanel != null)
-        {
-            winPanel.SetActive(true);
-        }
+        if (gamePanel != null) gamePanel.SetActive(false);
+        if (winPanel != null) winPanel.SetActive(true);
     }
 
-    public void HideWinPanel()
+    public void ShowLosePanel()
     {
-        if (winPanel != null)
-        {
-            winPanel.SetActive(false);
-        }
+        if (gamePanel != null) gamePanel.SetActive(false);
+        if (losePanel != null) losePanel.SetActive(true);
+    }
+
+    private void OnConfirmClicked()
+    {
+        GameManager.Instance?.ConfirmAnchorPlacement();
+    }
+
+    private void OnRestartClicked()
+    {
+        GameManager.Instance?.RestartGame();
+    }
+
+    private void OnNextLevelClicked()
+    {
+        GameManager.Instance?.NextLevel();
     }
 }
