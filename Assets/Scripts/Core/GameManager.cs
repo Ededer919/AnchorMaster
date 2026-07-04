@@ -97,4 +97,10 @@ public class GameManager : MonoBehaviour
 
         AnchorManager.Instance?.InitializeAnchors();
     }
+
+    public void OnPuzzleSolved()
+    {
+        Debug.Log("Puzzle solved!");
+        LevelComplete();
+    }
 }

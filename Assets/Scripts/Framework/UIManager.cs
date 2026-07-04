@@ -15,6 +15,7 @@ public class UIManager : MonoBehaviour
     public Text anchorCountText;
     public Text levelText;
     public Text timerText;
+    public Text moveCountText;
 
     [Header("UI Buttons")]
     public Button confirmButton;
@@ -84,6 +85,14 @@ public class UIManager : MonoBehaviour
             int minutes = (int)(time / 60);
             int seconds = (int)(time % 60);
             timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
+        }
+    }
+
+    public void UpdateMoveCount(int count)
+    {
+        if (moveCountText != null)
+        {
+            moveCountText.text = "Moves: " + count;
         }
     }
 
