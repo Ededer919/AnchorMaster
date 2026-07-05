@@ -14,6 +14,7 @@ public class GameLauncher : MonoBehaviour
     private GameUIBuilder uiBuilder;
     private PhysicsMergeSystem physicsMerge;
     private DisasterWindController windController;
+    private BlockPlacementEffect placementEffect;
 
     private Phase currentPhase = Phase.Ended;
     private float buildTimer;
@@ -113,6 +114,10 @@ public class GameLauncher : MonoBehaviour
         sceneBuilder.WindSystem.globalWindDirection = windDir;
         sceneBuilder.WindSystem.windBounds = sceneBuilder.GridBounds;
         windController.Initialize(sceneBuilder.WindSystem, physicsMerge, uiBuilder, sceneBuilder.GroundTopY, sceneBuilder.GridBounds);
+
+        // 7. Placement particle effect
+        placementEffect = gameObject.AddComponent<BlockPlacementEffect>();
+
         uiBuilder.CreateUI(buildSystem, windController);
         uiBuilder.SetLevelText($"第{level?.level ?? 1}关: {level?.levelName ?? "默认"}");
         uiBuilder.UpdateObjectCounts(buildSystem);
@@ -142,6 +147,7 @@ public class GameLauncher : MonoBehaviour
         DestroyImmediate(inputHandler);
         DestroyImmediate(uiBuilder);
         DestroyImmediate(windController);
+        DestroyImmediate(placementEffect);
 
         var oldWorld = GameObject.Find("GameWorld");
         if (oldWorld != null) DestroyImmediate(oldWorld);

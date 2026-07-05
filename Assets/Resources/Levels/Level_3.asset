@@ -14,16 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   level: 3
   levelName: "\u72C2\u98CE\u5CE1"
-  rows: 20
-  cols: 30
+  rows: 15
+  cols: 20
   cellSize: 0.5
-  groundWidth: 50
+  groundWidth: 45
   groundHeight: 6
   buildTime: 40
-  windStrength: 7
-  naturalStrength: 3
+  windStrength: 10
+  naturalStrength: 4
   windDuration: 12
-  windDirection: {x: 1, y: 0}
+  windDirection: {x: 1, y: -0.2}
   humanCount: 2
   quotas:
   - type: 0

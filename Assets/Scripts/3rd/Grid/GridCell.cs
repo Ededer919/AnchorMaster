@@ -14,7 +14,7 @@ public class GridCell : MonoBehaviour
     public SpriteRenderer backgroundRenderer;
     public SpriteRenderer highlightRenderer;
 
-    protected Color normalColor = new Color(0.2f, 0.2f, 0.3f, 0.3f);
+    protected Color normalColor = new Color(1f, 1f, 1f, 0.08f);
     protected Color highlightColor = new Color(0.376f, 0.329f, 0.945f, 0.5f);
 
     public virtual void Initialize(int row, int col)

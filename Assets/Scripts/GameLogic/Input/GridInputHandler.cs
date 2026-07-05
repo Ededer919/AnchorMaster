@@ -181,6 +181,7 @@ public class GridInputHandler : MonoBehaviour
             dragging.transform.position = new Vector3(worldPos.x, clampedY, 0);
             buildSystem?.OnObjectPlaced(dragging);
             UIManager.Instance?.UpdateStatus($"{dragging.displayName} 已放置");
+            PlayPlacementEffect(dragging);
         }
         else
         {
@@ -192,6 +193,7 @@ public class GridInputHandler : MonoBehaviour
                 {
                     buildSystem?.OnObjectPlaced(dragging);
                     UIManager.Instance?.UpdateStatus($"{dragging.displayName} 放置在 ({cell.y},{cell.x})");
+                    PlayPlacementEffect(dragging);
                 }
             }
             else
@@ -229,7 +231,20 @@ public class GridInputHandler : MonoBehaviour
         dragOffset = Vector3.zero;
         fromToolbar = true;
 
+        PlayPlacementEffect(dragging);
+
         return true;
+    }
+
+    /// <summary>
+    /// Plays the block placement particle effect and sound at the object's position.
+    /// </summary>
+    private void PlayPlacementEffect(GridObject obj)
+    {
+        if (BlockPlacementEffect.Instance == null) return;
+        Color color = ObjectConfig.Get(obj.objectType).color;
+        BlockPlacementEffect.Instance.PlayEffect(obj.transform.position, color);
+        AudioManager.Instance?.PlayPut();
     }
 
     private void OnDestroy()

@@ -15,12 +15,12 @@ MonoBehaviour:
   level: 2
   levelName: "\u5FAE\u98CE\u8C37"
   rows: 10
-  cols: 20
+  cols: 15
   cellSize: 0.5
-  groundWidth: 40
+  groundWidth: 35
   groundHeight: 5
   buildTime: 35
-  windStrength: 5
+  windStrength: 6
   naturalStrength: 2
   windDuration: 10
   windDirection: {x: 1, y: 0}

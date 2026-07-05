@@ -75,11 +75,18 @@ public class GameUIBuilder : MonoBehaviour
         // Wire buttons
         if (BuildModeButton != null)
         {
+            UIAnimator.SetupButton(BuildModeButton);
             BuildModeButton.onClick.AddListener(() =>
             {
+                AudioManager.Instance?.PlayClick();
                 buildSystem.ToggleMode();
                 SetText(BuildModeButton, buildSystem.IsBuildMode ? "自由模式" : "网格模式");
             });
+        }
+
+        if (WindButton != null)
+        {
+            UIAnimator.SetupButton(WindButton);
         }
 
         // Cache input handler for toolbar drag
@@ -127,9 +134,11 @@ public class GameUIBuilder : MonoBehaviour
                 // Click card → auto-spawn near balloon
                 if (btn != null)
                 {
+                    UIAnimator.SetupButton(btn);
                     var capturedType = type;
                     btn.onClick.AddListener(() =>
                     {
+                        AudioManager.Instance?.PlayClick();
                         buildSystem.SpawnNearBalloon(capturedType);
                     });
                 }

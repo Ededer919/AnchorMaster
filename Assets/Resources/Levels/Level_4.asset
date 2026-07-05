@@ -15,15 +15,15 @@ MonoBehaviour:
   level: 4
   levelName: "\u66B4\u98CE\u5CAD"
   rows: 20
-  cols: 30
+  cols: 25
   cellSize: 0.5
-  groundWidth: 60
+  groundWidth: 55
   groundHeight: 8
-  buildTime: 45
-  windStrength: 9
-  naturalStrength: 4
-  windDuration: 12
-  windDirection: {x: 1, y: -0.3}
+  buildTime: 40
+  windStrength: 16
+  naturalStrength: 6
+  windDuration: 15
+  windDirection: {x: 1, y: -0.4}
   humanCount: 2
   quotas:
   - type: 0
@@ -31,9 +31,9 @@ MonoBehaviour:
   - type: 1
     count: 6
   - type: 2
-    count: 5
+    count: 6
   - type: 3
-    count: 3
+    count: 4
   - type: 4
     count: 0
   - type: 5

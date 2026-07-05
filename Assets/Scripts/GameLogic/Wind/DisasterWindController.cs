@@ -15,6 +15,9 @@ public class DisasterWindController : MonoBehaviour
     private GameUIBuilder uiBuilder;
     private float groundTopY;
     private Rect gridBounds;
+    private WindVFXController windVFX;
+    private BalloonCamera balloonCam;
+    private bool restoringCam;
 
     public bool IsWindActive { get; private set; }
     private float windTimer;
@@ -27,10 +30,26 @@ public class DisasterWindController : MonoBehaviour
         uiBuilder = ui;
         groundTopY = groundY;
         gridBounds = bounds;
+
+        // Ensure WindVFXController exists
+        if (windVFX == null)
+            windVFX = gameObject.AddComponent<WindVFXController>();
+
+        // Ensure BalloonCamera exists
+        if (balloonCam == null)
+            balloonCam = gameObject.AddComponent<BalloonCamera>();
     }
 
     private void Update()
     {
+        // Restore camera smoothly after wind ends
+        if (restoringCam && balloonCam != null)
+        {
+            balloonCam.RestoreUpdate();
+            if (balloonCam.IsRestored())
+                restoringCam = false;
+        }
+
         if (!IsWindActive) return;
 
         windTimer -= Time.deltaTime;
@@ -89,6 +108,14 @@ public class DisasterWindController : MonoBehaviour
 
         UIManager.Instance?.UpdateStatus("暴风来袭! 保护气球!");
         uiBuilder?.UpdateWindButtonLabel(true);
+
+        // Start wind VFX
+        Vector3 vfxPos = new Vector3(gridBounds.center.x, gridBounds.center.y, 0);
+        windVFX?.PlayWind(vfxPos, windSystem.globalWindDirection, gridBounds.width, gridBounds.height);
+
+        // Start balloon tracking camera
+        balloonCam?.StartTracking();
+
         Debug.Log($"[Wind] Disaster wind started for {disasterDuration}s.");
     }
 
@@ -99,6 +126,10 @@ public class DisasterWindController : MonoBehaviour
         IsWindActive = false;
         windSystem.globalWindStrength = 0f;
         windSystem.naturalWindStrength = 0f;
+
+        windVFX?.StopWind();
+        balloonCam?.StopTracking();
+        restoringCam = true;
 
         physicsMerge.DissolvePhysics();
 
@@ -126,6 +157,9 @@ public class DisasterWindController : MonoBehaviour
         IsWindActive = false;
         windSystem.globalWindStrength = 0f;
         windSystem.naturalWindStrength = 0f;
+        windVFX?.StopWind();
+        balloonCam?.StopTracking();
+        restoringCam = true;
         physicsMerge.DissolvePhysics();
 
         UIManager.Instance?.UpdateStatus("气球保住了! 胜利!");
@@ -139,6 +173,9 @@ public class DisasterWindController : MonoBehaviour
         IsWindActive = false;
         windSystem.globalWindStrength = 0f;
         windSystem.naturalWindStrength = 0f;
+        windVFX?.StopWind();
+        balloonCam?.StopTracking();
+        restoringCam = true;
         physicsMerge.DissolvePhysics();
 
         UIManager.Instance?.UpdateStatus("气球飞走了! 失败!");

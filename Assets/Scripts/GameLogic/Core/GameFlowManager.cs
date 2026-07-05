@@ -3,7 +3,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Manages game flow as independent pages: StartGame → LevelChoose → Game → Result.
-/// Each page is instantiated/destroyed — no show/hide toggling.
+/// Each page switch is wrapped in a pixel-grid transition.
+/// Plays click SFX on button presses, BGM on game page.
 /// </summary>
 public class GameFlowManager : MonoBehaviour
 {
@@ -12,6 +13,7 @@ public class GameFlowManager : MonoBehaviour
     private GameObject currentPanel;
     private Transform canvas;
     private bool resultShown;
+    private bool isInitialized;
 
     void Awake()
     {
@@ -21,6 +23,13 @@ public class GameFlowManager : MonoBehaviour
 
     void Start()
     {
+        // Ensure AudioManager exists
+        if (FindFirstObjectByType<AudioManager>() == null)
+        {
+            var amGo = new GameObject("AudioManager");
+            amGo.AddComponent<AudioManager>();
+        }
+
         var mainCanvas = GameObject.Find("MainCanvas");
         if (mainCanvas != null)
         {
@@ -45,219 +54,252 @@ public class GameFlowManager : MonoBehaviour
             es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
         }
 
-        ShowStartGame();
+        // Ensure PageTransition exists on its own GameObject
+        if (FindFirstObjectByType<PageTransition>() == null)
+        {
+            var ptGo = new GameObject("PageTransition");
+            ptGo.AddComponent<PageTransition>();
+        }
+
+        // First page: no transition (coroutines not ready on frame 0)
+        isInitialized = true;
+        CloseCurrent();
+
+        var prefab0 = Resources.Load<GameObject>("UI/Panels/StartGame");
+        if (prefab0 != null)
+        {
+            var panel0 = Instantiate(prefab0, canvas, false);
+            panel0.name = "StartGamePanel";
+            currentPanel = panel0;
+
+            // Enlarge title, raise button position
+            var titleRt = FindChildRecursive(panel0.transform, "nametitle") as RectTransform;
+            if (titleRt != null)
+            {
+                var s = titleRt.localScale;
+                titleRt.localScale = new Vector3(s.x * 1.3f, s.y * 1.3f, s.z);
+            }
+            var startRt0 = FindChildRecursive(panel0.transform, "Start") as RectTransform;
+            if (startRt0 != null)
+            {
+                var pos = startRt0.anchoredPosition;
+                startRt0.anchoredPosition = new Vector2(pos.x, pos.y + 80f);
+            }
+
+            var startBtn0 = FindButton(panel0, "Start");
+            if (startBtn0 != null)
+            {
+                startBtn0.onClick.AddListener(() => { PlayClick(); ShowLevelChoose(); });
+                UIAnimator.SetupButton(startBtn0);
+            }
+
+            // Play slide-in entrance (title from top, button from bottom)
+            var anim = panel0.AddComponent<StartScreenAnim>();
+            anim.Play();
+
+            AudioManager.Instance?.PlayBGM();
+            Debug.Log("[Flow] StartGame page shown (initial)");
+        }
+    }
+
+    private void TransitionTo(System.Action loadAction)
+    {
+        if (!isInitialized || PageTransition.Instance == null)
+            loadAction();
+        else
+            PageTransition.Instance.Transition(loadAction);
+    }
+
+    private void Update()
+    {
+        if (PageTransition.Instance != null)
+            PageTransition.Instance.UpdateReveal();
+    }
+
+    private void PlayClick()
+    {
+        AudioManager.Instance?.PlayClick();
     }
 
     // ========== Start Game Page ==========
 
     void ShowStartGame()
     {
-        CloseCurrent();
+        TransitionTo(() =>
+        {
+            CloseCurrent();
 
-        var prefab = Resources.Load<GameObject>("UI/Panels/StartGame");
-        if (prefab == null) { Debug.LogError("[Flow] StartGame prefab not found"); return; }
+            var prefab = Resources.Load<GameObject>("UI/Panels/StartGame");
+            if (prefab == null) { Debug.LogError("[Flow] StartGame prefab not found"); return; }
 
-        var panel = Instantiate(prefab, canvas, false);
-        panel.name = "StartGamePanel";
-        currentPanel = panel;
+            var panel = Instantiate(prefab, canvas, false);
+            panel.name = "StartGamePanel";
+            currentPanel = panel;
 
-        var startBtn = FindButton(panel, "Start");
-        if (startBtn != null)
-            startBtn.onClick.AddListener(ShowLevelChoose);
+            var startBtn = FindButton(panel, "Start");
+            if (startBtn != null)
+            {
+                startBtn.onClick.AddListener(() => { PlayClick(); ShowLevelChoose(); });
+                UIAnimator.SetupButton(startBtn);
+            }
 
-        Debug.Log("[Flow] StartGame page shown");
+            UIAnimator.SetupAllButtons(panel);
+            UIAnimator.PlayEntrance(panel, 0.4f);
+            Debug.Log("[Flow] StartGame page shown");
+        });
     }
 
     // ========== Level Choose Page ==========
 
     void ShowLevelChoose()
     {
-        CloseCurrent();
-
-        var prefab = Resources.Load<GameObject>("UI/Panels/LevelChoose");
-        if (prefab == null) { Debug.LogError("[Flow] LevelChoose prefab not found"); return; }
-
-        var panel = Instantiate(prefab, canvas, false);
-        panel.name = "LevelChoosePanel";
-        currentPanel = panel;
-
-        for (int i = 1; i <= 5; i++)
+        TransitionTo(() =>
         {
-            var btn = FindButton(panel, "lv" + i);
-            if (btn != null)
-            {
-                int levelIndex = i - 1;
-                btn.onClick.AddListener(() => StartLevel(levelIndex));
-            }
-        }
+            CloseCurrent();
 
-        Debug.Log("[Flow] LevelChoose page shown");
+            var prefab = Resources.Load<GameObject>("UI/Panels/LevelChoose");
+            if (prefab == null) { Debug.LogError("[Flow] LevelChoose prefab not found"); return; }
+
+            var panel = Instantiate(prefab, canvas, false);
+            panel.name = "LevelChoosePanel";
+            currentPanel = panel;
+
+            for (int i = 1; i <= 5; i++)
+            {
+                var btn = FindButton(panel, "lv" + i);
+                if (btn != null)
+                {
+                    int levelIndex = i - 1;
+                    btn.onClick.AddListener(() => { PlayClick(); StartLevel(levelIndex); });
+                    UIAnimator.SetupButton(btn);
+                }
+            }
+
+            UIAnimator.SetupAllButtons(panel);
+            UIAnimator.PlayEntrance(panel, 0.4f);
+            Debug.Log("[Flow] LevelChoose page shown");
+        });
     }
 
     // ========== Game Page ==========
 
     void StartLevel(int index)
     {
-        CloseCurrent();
+        TransitionTo(() =>
+        {
+            CloseCurrent();
 
-        if (LevelManager.Instance != null)
-            LevelManager.Instance.LoadLevel(index);
+            if (LevelManager.Instance != null)
+                LevelManager.Instance.LoadLevel(index);
 
-        var prefab = Resources.Load<GameObject>("UI/Panels/Game");
-        if (prefab == null) { Debug.LogError("[Flow] Game prefab not found"); return; }
+            var prefab = Resources.Load<GameObject>("UI/Panels/Game");
+            if (prefab == null) { Debug.LogError("[Flow] Game prefab not found"); return; }
 
-        var panel = Instantiate(prefab, canvas, false);
-        panel.name = "GamePanel";
-        currentPanel = panel;
+            var panel = Instantiate(prefab, canvas, false);
+            panel.name = "GamePanel";
+            currentPanel = panel;
 
-        resultShown = false;
+            resultShown = false;
 
-        var launcher = FindFirstObjectByType<GameLauncher>();
-        if (launcher != null)
-            launcher.ReloadScene();
+            var launcher = FindFirstObjectByType<GameLauncher>();
+            if (launcher != null)
+                launcher.ReloadScene();
 
-        Debug.Log("[Flow] Game page shown, level " + (index + 1));
+            UIAnimator.SetupAllButtons(panel);
+            Debug.Log("[Flow] Game page shown, level " + (index + 1));
+        });
     }
 
     // ========== Result Page ==========
 
     /// <summary>
-    /// Creates a standalone result page. Called by DisasterWindController when game ends.
-    /// GameWorld is kept visible behind the semi-transparent result panel.
+    /// Shows the result panel (victory or lose prefab) with a pixel transition.
+    /// Called by DisasterWindController when game ends.
     /// </summary>
     public void ShowResult(bool isWin, string message)
     {
         if (resultShown) return;
         resultShown = true;
 
-        CloseCurrent();
-
-        var panel = CreateResultPanel(isWin, message);
-        panel.name = "ResultPanel";
-        currentPanel = panel;
-
-        Debug.Log("[Flow] Result page shown: " + (isWin ? "Win" : "Lose"));
-    }
-
-    private GameObject CreateResultPanel(bool isWin, string message)
-    {
-        var go = new GameObject("ResultPanel");
-        go.transform.SetParent(canvas, false);
-
-        var rt = go.AddComponent<RectTransform>();
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-
-        // Semi-transparent background
-        var bgGo = new GameObject("Background");
-        bgGo.transform.SetParent(go.transform, false);
-        var bgRt = bgGo.AddComponent<RectTransform>();
-        bgRt.anchorMin = Vector2.zero;
-        bgRt.anchorMax = Vector2.one;
-        bgRt.offsetMin = Vector2.zero;
-        bgRt.offsetMax = Vector2.zero;
-        var bgImg = bgGo.AddComponent<Image>();
-        bgImg.color = new Color(0, 0, 0, 0.6f);
-
-        // Result card
-        var cardGo = new GameObject("ResultCard");
-        cardGo.transform.SetParent(go.transform, false);
-        var cardRt = cardGo.AddComponent<RectTransform>();
-        cardRt.sizeDelta = new Vector2(500, 320);
-        cardRt.anchoredPosition = Vector2.zero;
-        var cardImg = cardGo.AddComponent<Image>();
-        cardImg.color = new Color(0.15f, 0.15f, 0.2f, 0.95f);
-
-        // Title text
-        var titleGo = new GameObject("ResultTitle");
-        titleGo.transform.SetParent(cardGo.transform, false);
-        var titleRt = titleGo.AddComponent<RectTransform>();
-        titleRt.anchoredPosition = new Vector2(0, 80);
-        titleRt.sizeDelta = new Vector2(460, 60);
-        var titleText = titleGo.AddComponent<Text>();
-        titleText.text = isWin ? "胜利!" : "失败!";
-        titleText.color = isWin ? new Color(0.3f, 1f, 0.4f) : new Color(1f, 0.3f, 0.3f);
-        titleText.alignment = TextAnchor.MiddleCenter;
-        titleText.fontSize = 48;
-        titleText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
-        // Subtitle text
-        var subGo = new GameObject("ResultSubtitle");
-        subGo.transform.SetParent(cardGo.transform, false);
-        var subRt = subGo.AddComponent<RectTransform>();
-        subRt.anchoredPosition = new Vector2(0, 20);
-        subRt.sizeDelta = new Vector2(460, 40);
-        var subText = subGo.AddComponent<Text>();
-        subText.text = message;
-        subText.color = Color.white;
-        subText.alignment = TextAnchor.MiddleCenter;
-        subText.fontSize = 22;
-        subText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
-        // Button row
-        var rowGo = new GameObject("ButtonRow");
-        rowGo.transform.SetParent(cardGo.transform, false);
-        var rowRt = rowGo.AddComponent<RectTransform>();
-        rowRt.anchoredPosition = new Vector2(0, -70);
-        rowRt.sizeDelta = new Vector2(460, 50);
-
-        // Back to level choose button
-        var backBtn = CreateButton(rowGo.transform, "BackButton", "返回选关", new Vector2(-120, 0));
-        backBtn.onClick.AddListener(() =>
+        TransitionTo(() =>
         {
-            CleanupGameAndReturn();
-        });
+            CloseCurrent();
 
-        // Next level button (only if win and not last level)
-        bool showNext = isWin && LevelManager.Instance != null && !LevelManager.Instance.IsLastLevel();
-        if (showNext)
-        {
-            var nextBtn = CreateButton(rowGo.transform, "NextButton", "下一关", new Vector2(120, 0));
-            nextBtn.onClick.AddListener(() =>
+            // ---- Semi-transparent dim overlay ----
+            var overlay = new GameObject("ResultPanel");
+            overlay.transform.SetParent(canvas, false);
+            var overlayRt = overlay.AddComponent<RectTransform>();
+            overlayRt.anchorMin = Vector2.zero;
+            overlayRt.anchorMax = Vector2.one;
+            overlayRt.offsetMin = Vector2.zero;
+            overlayRt.offsetMax = Vector2.zero;
+
+            var bgGo = new GameObject("DimBG");
+            bgGo.transform.SetParent(overlay.transform, false);
+            var bgRt = bgGo.AddComponent<RectTransform>();
+            bgRt.anchorMin = Vector2.zero;
+            bgRt.anchorMax = Vector2.one;
+            bgRt.offsetMin = Vector2.zero;
+            bgRt.offsetMax = Vector2.zero;
+            var bgImg = bgGo.AddComponent<Image>();
+            bgImg.color = new Color(0, 0, 0, 0.5f);
+            var bgGroup = bgGo.AddComponent<CanvasGroup>();
+            bgGroup.alpha = 0f;
+
+            // ---- Load result prefab directly ----
+            string prefabName = isWin ? "UI/Panels/voctory" : "UI/Panels/lose";
+            var prefab = Resources.Load<GameObject>(prefabName);
+            if (prefab == null)
             {
-                CloseCurrent();
-                if (LevelManager.Instance != null)
-                    LevelManager.Instance.NextLevel();
-                StartLevel(LevelManager.Instance.CurrentIndex);
-            });
-        }
+                Debug.LogError("[Flow] Result prefab not found: " + prefabName);
+                return;
+            }
 
-        return go;
-    }
+            var panel = Instantiate(prefab, overlay.transform, false);
+            // Keep prefab's original transform — don't add RectTransform if it doesn't have one
+            panel.transform.localScale = Vector3.one;
 
-    private Button CreateButton(Transform parent, string name, string label, Vector2 position)
-    {
-        var go = new GameObject(name);
-        go.transform.SetParent(parent, false);
-        var rt = go.AddComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(200, 50);
-        rt.anchoredPosition = position;
-        var img = go.AddComponent<Image>();
-        img.color = new Color(0.2f, 0.4f, 0.7f, 1f);
-        var btn = go.AddComponent<Button>();
-        var colors = btn.colors;
-        colors.highlightedColor = new Color(0.3f, 0.5f, 0.8f, 1f);
-        colors.pressedColor = new Color(0.15f, 0.3f, 0.5f, 1f);
-        btn.colors = colors;
+            // Add CanvasGroup for fade animation if not present
+            var panelGroup = panel.GetComponent<CanvasGroup>();
+            if (panelGroup == null)
+                panelGroup = panel.AddComponent<CanvasGroup>();
+            panelGroup.alpha = 0f;
+            panel.transform.localScale = new Vector3(0.85f, 0.85f, 0.85f);
 
-        var labelGo = new GameObject("Label");
-        labelGo.transform.SetParent(go.transform, false);
-        var labelRt = labelGo.AddComponent<RectTransform>();
-        labelRt.anchorMin = Vector2.zero;
-        labelRt.anchorMax = Vector2.one;
-        labelRt.offsetMin = Vector2.zero;
-        labelRt.offsetMax = Vector2.zero;
-        var labelText = labelGo.AddComponent<Text>();
-        labelText.text = label;
-        labelText.color = Color.white;
-        labelText.alignment = TextAnchor.MiddleCenter;
-        labelText.fontSize = 24;
-        labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        labelText.raycastTarget = false;
+            currentPanel = overlay;
 
-        return btn;
+            // ---- Wire buttons ----
+            var retryBtn = FindButton(panel, "retry");
+            if (retryBtn != null)
+            {
+                retryBtn.onClick.AddListener(() =>
+                {
+                    PlayClick();
+                    int idx = LevelManager.Instance != null ? LevelManager.Instance.CurrentIndex : 0;
+                    StartLevel(idx);
+                });
+                UIAnimator.SetupButton(retryBtn);
+            }
+
+            var backBtn = FindButton(panel, "backmain");
+            if (backBtn != null)
+            {
+                backBtn.onClick.AddListener(() =>
+                {
+                    PlayClick();
+                    CleanupGameAndReturn();
+                });
+                UIAnimator.SetupButton(backBtn);
+            }
+
+            UIAnimator.SetupAllButtons(panel);
+
+            // ---- Entrance: dim fades in, prefab fades+scales in ----
+            var anim = overlay.AddComponent<ResultPanelAnim>();
+            anim.Play(panel.transform, panelGroup, bgGroup);
+
+            Debug.Log("[Flow] Result page shown: " + (isWin ? "Win" : "Lose") + " — " + message);
+        });
     }
 
     // ========== Navigation Helpers ==========
@@ -276,7 +318,6 @@ public class GameFlowManager : MonoBehaviour
 
     private void CleanupGameAndReturn()
     {
-        CloseCurrent();
         ReturnToLevelChoose();
     }
 
@@ -305,6 +346,18 @@ public class GameFlowManager : MonoBehaviour
         foreach (var b in btns)
         {
             if (b.gameObject.name == name) return b;
+        }
+        return null;
+    }
+
+    Transform FindChildRecursive(Transform root, string name)
+    {
+        for (int i = 0; i < root.childCount; i++)
+        {
+            var child = root.GetChild(i);
+            if (child.name == name) return child;
+            var result = FindChildRecursive(child, name);
+            if (result != null) return result;
         }
         return null;
     }

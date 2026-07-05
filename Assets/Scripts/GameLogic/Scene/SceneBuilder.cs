@@ -105,11 +105,15 @@ public class SceneBuilder : MonoBehaviour
         // Place balloons (interior only, not on edges)
         CreateBalloons();
 
+        // Create world-space sky/sun/clouds on Game layer (no colliders → won't block dragging)
+        CreateSky(root);
+
         var cam = Camera.main;
         if (cam != null)
         {
             cam.orthographic = true;
             cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.53f, 0.81f, 0.92f, 1f); // sky blue
             float viewHeight = rows * cellSize + groundHeight + cellSize * 3f;
             float viewWidth = cols * cellSize + cellSize * 4f;
             cam.orthographicSize = Mathf.Max(viewHeight * 0.6f, viewWidth * 0.6f / cam.aspect);
@@ -128,6 +132,9 @@ public class SceneBuilder : MonoBehaviour
 
         // Set all GameWorld descendants to Game layer
         SetLayerRecursive(root, 8);
+
+        // Add ambient animation (sun rotation, cloud drift)
+        rootGo.AddComponent<SceneAnimator>();
 
         Debug.Log("[SceneBuilder] Scene built.");
     }
@@ -240,11 +247,7 @@ public class SceneBuilder : MonoBehaviour
         go.transform.position = new Vector3(0, GroundTopY - groundHeight / 2f, 0);
         go.transform.localScale = new Vector3(groundWidth, groundHeight, 1);
 
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = sharedSprite;
-        sr.color = new Color(0.18f, 0.22f, 0.16f, 1f);
-        sr.sortingOrder = -1;
-
+        // Keep collider for physics, hide the visual
         var col = go.AddComponent<BoxCollider2D>();
         col.size = Vector2.one;
     }
@@ -289,8 +292,8 @@ public class SceneBuilder : MonoBehaviour
     /// </summary>
     private void CreateSky(Transform parent)
     {
-        // Sky
-        var skyTex = Resources.Load<Texture2D>("UI/Sprites/Objects/sky");
+        // Sky — large background plane behind everything
+        var skyTex = Resources.Load<Texture2D>("UI/Sprites/Objects/sky1");
         if (skyTex != null)
         {
             var skySprite = Sprite.Create(skyTex, new Rect(0, 0, skyTex.width, skyTex.height),
@@ -298,13 +301,16 @@ public class SceneBuilder : MonoBehaviour
 
             var skyGo = new GameObject("Sky");
             skyGo.transform.SetParent(parent, false);
-            skyGo.transform.position = new Vector3(0, GroundTopY + rows * cellSize + 5f, 10);
-            skyGo.transform.localScale = new Vector3(50, 20, 1);
+            skyGo.transform.position = new Vector3(0, GroundTopY + rows * cellSize / 2f, 10);
+            skyGo.transform.localScale = new Vector3(
+                Mathf.Max(cols * cellSize * 4f, 40f),
+                Mathf.Max(rows * cellSize * 4f, 25f),
+                1);
 
             var sr = skyGo.AddComponent<SpriteRenderer>();
             sr.sprite = skySprite;
-            sr.color = new Color(0.8f, 0.8f, 0.9f, 0.3f);
-            sr.sortingOrder = -5;
+            sr.color = new Color(1f, 1f, 1f, 0.9f);
+            sr.sortingOrder = -10;
         }
 
         // Sun
@@ -316,13 +322,16 @@ public class SceneBuilder : MonoBehaviour
 
             var sunGo = new GameObject("Sun");
             sunGo.transform.SetParent(parent, false);
-            sunGo.transform.position = new Vector3(-cols * cellSize / 2f - 3f,
-                GroundTopY + rows * cellSize + 3f, 8);
+            sunGo.transform.position = new Vector3(
+                -cols * cellSize / 2f - 3f,
+                GroundTopY + rows * cellSize + 3f,
+                8);
             sunGo.transform.localScale = new Vector3(3, 3, 1);
 
             var sr = sunGo.AddComponent<SpriteRenderer>();
             sr.sprite = sunSprite;
-            sr.sortingOrder = -4;
+            sr.color = Color.white;
+            sr.sortingOrder = -8;
         }
 
         // Clouds
@@ -344,8 +353,8 @@ public class SceneBuilder : MonoBehaviour
 
                 var sr = cloudGo.AddComponent<SpriteRenderer>();
                 sr.sprite = cloudSprite;
-                sr.color = new Color(1, 1, 1, 0.5f);
-                sr.sortingOrder = -4;
+                sr.color = new Color(1, 1, 1, 0.8f);
+                sr.sortingOrder = -7;
             }
         }
     }
@@ -382,12 +391,77 @@ public class SceneBuilder : MonoBehaviour
                 var cell = GridSystem.GetCell(r, c);
                 if (cell != null && cell.backgroundRenderer != null)
                 {
+                    // Alternating subtle tones with slight transparency
                     cell.backgroundRenderer.color = (r + c) % 2 == 0
-                        ? new Color(0.25f, 0.25f, 0.32f, 0.8f)
-                        : new Color(0.2f, 0.2f, 0.27f, 0.8f);
+                        ? new Color(1f, 1f, 1f, 0.08f)
+                        : new Color(0f, 0f, 0f, 0.10f);
                 }
             }
         }
+
+        CreateGridBorder();
+    }
+
+    /// <summary>
+    /// Draws a thin semi-transparent border frame around the entire grid area.
+    /// </summary>
+    private void CreateGridBorder()
+    {
+        var border = new GameObject("GridBorder");
+        border.transform.SetParent(GridSystem.transform.parent, false);
+
+        float gridW = cols * cellSize;
+        float gridH = rows * cellSize;
+        Vector2 origin = GridSystem.gridOrigin;
+        float cx = origin.x + gridW * 0.5f - cellSize * 0.5f;
+        float cy = origin.y + gridH * 0.5f - cellSize * 0.5f;
+        var borderColor = new Color(1f, 1f, 1f, 0.25f);
+        float thickness = 0.08f;
+
+        // Top edge
+        CreateEdge(border.transform, "Edge_Top",
+            new Vector3(cx, origin.y + rows * cellSize - cellSize * 0.5f, 0),
+            new Vector2(gridW + cellSize, thickness), borderColor);
+        // Bottom edge
+        CreateEdge(border.transform, "Edge_Bottom",
+            new Vector3(cx, origin.y - cellSize * 0.5f, 0),
+            new Vector2(gridW + cellSize, thickness), borderColor);
+        // Left edge
+        CreateEdge(border.transform, "Edge_Left",
+            new Vector3(origin.x - cellSize * 0.5f, cy, 0),
+            new Vector2(thickness, gridH + cellSize), borderColor);
+        // Right edge
+        CreateEdge(border.transform, "Edge_Right",
+            new Vector3(origin.x + cols * cellSize - cellSize * 0.5f, cy, 0),
+            new Vector2(thickness, gridH + cellSize), borderColor);
+
+        // Subtle corner accents
+        float cornerSize = cellSize * 0.5f;
+        Vector3 tl = new Vector3(origin.x - cellSize * 0.5f, origin.y + rows * cellSize - cellSize * 0.5f, 0);
+        Vector3 tr = new Vector3(origin.x + cols * cellSize - cellSize * 0.5f, origin.y + rows * cellSize - cellSize * 0.5f, 0);
+        Vector3 bl = new Vector3(origin.x - cellSize * 0.5f, origin.y - cellSize * 0.5f, 0);
+        Vector3 br = new Vector3(origin.x + cols * cellSize - cellSize * 0.5f, origin.y - cellSize * 0.5f, 0);
+
+        CreateEdge(border.transform, "Corner_TL", tl, new Vector2(cornerSize, thickness * 2), borderColor);
+        CreateEdge(border.transform, "Corner_TL_V", tl, new Vector2(thickness * 2, cornerSize), borderColor);
+        CreateEdge(border.transform, "Corner_TR", tr, new Vector2(cornerSize, thickness * 2), borderColor);
+        CreateEdge(border.transform, "Corner_TR_V", tr, new Vector2(thickness * 2, cornerSize), borderColor);
+        CreateEdge(border.transform, "Corner_BL", bl, new Vector2(cornerSize, thickness * 2), borderColor);
+        CreateEdge(border.transform, "Corner_BL_V", bl, new Vector2(thickness * 2, cornerSize), borderColor);
+        CreateEdge(border.transform, "Corner_BR", br, new Vector2(cornerSize, thickness * 2), borderColor);
+        CreateEdge(border.transform, "Corner_BR_V", br, new Vector2(thickness * 2, cornerSize), borderColor);
+    }
+
+    private void CreateEdge(Transform parent, string name, Vector3 pos, Vector2 scale, Color color)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.transform.position = pos;
+        go.transform.localScale = new Vector3(scale.x, scale.y, 1);
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = sharedSprite;
+        sr.color = color;
+        sr.sortingOrder = 1;
     }
 
     private void CreateInitialObjects()

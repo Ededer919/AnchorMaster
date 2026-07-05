@@ -17,13 +17,13 @@ MonoBehaviour:
   rows: 20
   cols: 30
   cellSize: 0.5
-  groundWidth: 80
+  groundWidth: 70
   groundHeight: 10
-  buildTime: 50
-  windStrength: 12
-  naturalStrength: 6
-  windDuration: 15
-  windDirection: {x: 1, y: 0.5}
+  buildTime: 45
+  windStrength: 25
+  naturalStrength: 10
+  windDuration: 20
+  windDirection: {x: 1, y: 0.6}
   humanCount: 3
   quotas:
   - type: 0
@@ -31,9 +31,9 @@ MonoBehaviour:
   - type: 1
     count: 8
   - type: 2
-    count: 10
+    count: 8
   - type: 3
-    count: 4
+    count: 5
   - type: 4
     count: 0
   - type: 5
