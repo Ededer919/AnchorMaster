@@ -57,6 +57,10 @@ public class SceneBuilder : MonoBehaviour
 
         float gridHeight = rows * cellSize;
         GroundTopY = -gridHeight / 2f;
+
+        // Adjust camera to fit the grid with comfortable padding,
+        // but clamp orthographic size so cells don't become too small
+        float maxViewSize = 8f; // max half-height of view
         CreateGround(root);
 
         Vector2 origin = new Vector2(-cols * cellSize / 2f, GroundTopY + cellSize / 2f);
@@ -116,7 +120,9 @@ public class SceneBuilder : MonoBehaviour
             cam.backgroundColor = new Color(0.53f, 0.81f, 0.92f, 1f); // sky blue
             float viewHeight = rows * cellSize + groundHeight + cellSize * 3f;
             float viewWidth = cols * cellSize + cellSize * 4f;
-            cam.orthographicSize = Mathf.Max(viewHeight * 0.6f, viewWidth * 0.6f / cam.aspect);
+            float desiredSize = Mathf.Max(viewHeight * 0.6f, viewWidth * 0.6f / cam.aspect);
+            // Clamp so cells don't become too small on large grids
+            cam.orthographicSize = Mathf.Min(desiredSize, maxViewSize);
 
             // Sync UI Camera orthographicSize so Canvas (ScreenSpaceCamera) aligns with game world
             var uiCam = UnityEngine.Object.FindObjectsByType<Camera>(UnityEngine.FindObjectsSortMode.None);
