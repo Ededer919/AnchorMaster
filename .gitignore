@@ -32,7 +32,6 @@ Thumbs.db
 Assets/Scripts/Test/
 
 # IDE extensions
-.codely-cli/
 .mimocode/
 plans/
 screenshots/
