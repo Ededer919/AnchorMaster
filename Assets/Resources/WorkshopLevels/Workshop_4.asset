@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 564efe214ab80cc46bc2f3047dc96030, type: 3}
+  m_Name: Workshop_4
+  m_EditorClassIdentifier: 
+  title: "\u98CE\u5411\u4F1A\u6539\u53D8"
+  briefing: "\u4E2D\u9014\u98CE\u5411\u53CD\u8F6C\u3002\u9760\u5355\u4FA7\u6321\u98CE\u6216\u5355\u8FB9\u652F\u6491\uFF0C\u672A\u5FC5\u80FD\u6491\u5230\u6700\u540E\u3002"
+  hint: "\u5148\u770B\u98CE\u66B4\u65F6\u95F4\u7EBF\uFF0C\u7ED9\u4E24\u4E2A\u65B9\u5411\u90FD\u7559\u4E00\u6761\u53EF\u9760\u7684\u53D7\u529B\u8DEF\u5F84\u3002"
+  wood: 4
+  steel: 2
+  stone: 1
+  anchors: 4
+  duration: 10
+  windForce: 13
+  reversingWind: 1
+  startingBlocks:
+  - cell: {x: 0, y: -2}
+    material: 0
+    preset: 1
+    grounded: 0
+  - cell: {x: 0, y: -1}
+    material: 0
+    preset: 1
+    grounded: 0
+  - cell: {x: 0, y: 0}
+    material: 0
+    preset: 1
+    grounded: 0
+  - cell: {x: -1, y: 0}
+    material: 0
+    preset: 1
+    grounded: 0
+  - cell: {x: 1, y: 0}
+    material: 0
+    preset: 1
+    grounded: 0
+  - cell: {x: -1, y: 1}
+    material: 3
+    preset: 1
+    grounded: 0
+  - cell: {x: 1, y: 1}
+    material: 3
+    preset: 1
+    grounded: 0
