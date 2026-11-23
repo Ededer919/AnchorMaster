@@ -36,6 +36,10 @@ MonoBehaviour:
     preset: 1
     grounded: 0
   - cell: {x: 0, y: 1}
+    material: 0
+    preset: 1
+    grounded: 0
+  - cell: {x: 0, y: 2}
     material: 3
     preset: 1
     grounded: 0

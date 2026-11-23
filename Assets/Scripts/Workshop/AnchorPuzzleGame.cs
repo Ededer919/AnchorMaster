@@ -277,7 +277,8 @@ namespace AnchorMaster.Workshop
                 var hits = Physics2D.RaycastAll(position + Vector2.left * direction * .55f, Vector2.left * direction, 10);
                 bool sheltered = hits.Any(h => h.rigidbody != null && h.rigidbody != body.rb && h.collider.gameObject.layer == 8);
                 float exposure = sheltered ? .28f : 1;
-                body.rb.AddForce(Vector2.right * direction * Level.windForce * envelope * gust * exposure);
+                body.rb.AddForce(Vector2.right * direction * Level.windForce * envelope * gust * exposure
+                    * WorkshopMaterial.WindDrag(body.plan.material));
             }
             foreach (var link in links)
             {
@@ -343,6 +344,7 @@ namespace AnchorMaster.Workshop
             bodies.Clear(); links.Clear();
             world = new GameObject("AnchorWorkshop_World"); world.transform.SetParent(transform);
             ConfigureCamera();
+            BuildScenery();
             BuildPlacementGrid();
             foreach (var block in plan)
             {
@@ -354,7 +356,7 @@ namespace AnchorMaster.Workshop
                 collider.size = new Vector2(.84f / go.transform.localScale.x, .84f / go.transform.localScale.y);
                 var rb = go.AddComponent<Rigidbody2D>();
                 rb.bodyType = RigidbodyType2D.Kinematic;
-                rb.mass = block.material == MaterialKind.Stone ? 4 : block.material == MaterialKind.Steel ? 2 : block.material == MaterialKind.Balloon ? .35f : 1;
+                rb.mass = WorkshopMaterial.Mass(block.material);
                 rb.gravityScale = block.material == MaterialKind.Balloon ? -.22f : .6f;
                 rb.drag = .35f; rb.angularDrag = .8f;
                 rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
@@ -401,14 +403,17 @@ namespace AnchorMaster.Workshop
             Vector2 b = link.b != null ? link.b.plan.cell : new Vector2(a.x, -3);
             Vector2 midpoint = (a + b) * .5f;
             bool vertical = Mathf.Abs(a.y - b.y) >= Mathf.Abs(a.x - b.x);
-            int loadedBlocks = bodies.Values.Count(body => vertical
+            var loadedBodies = bodies.Values.Where(body => vertical
                 ? body.plan.cell.y >= Mathf.Max(a.y, b.y)
                 : direction > 0 ? body.plan.cell.x >= midpoint.x : body.plan.cell.x <= midpoint.x);
-            return Level.windForce * gust * Mathf.Max(1, loadedBlocks);
+            float load = loadedBodies.Sum(body => WorkshopMaterial.WindDrag(body.plan.material)
+                / Mathf.Sqrt(WorkshopMaterial.Mass(body.plan.material)));
+            return Level.windForce * gust * Mathf.Max(.25f, load);
         }
 
         void LateUpdate()
         {
+            AnimateScenery(Time.deltaTime);
             foreach (var link in links)
             {
                 if (link.line == null) continue;
@@ -443,10 +448,12 @@ namespace AnchorMaster.Workshop
         Sprite AssetSprite(string name)
         {
             if (spriteCache.TryGetValue(name, out var sprite)) return sprite;
-            sprite = Resources.Load<Sprite>("UI/Sprites/Objects/" + name);
+            sprite = Resources.Load<Sprite>("new/backgroud/" + name);
+            if (sprite == null) sprite = Resources.Load<Sprite>("UI/Sprites/Objects/" + name);
             if (sprite == null)
             {
-                var texture = Resources.Load<Texture2D>("UI/Sprites/Objects/" + name);
+                var texture = Resources.Load<Texture2D>("new/backgroud/" + name);
+                if (texture == null) texture = Resources.Load<Texture2D>("UI/Sprites/Objects/" + name);
                 if (texture != null)
                 {
                     sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one * .5f, texture.width);

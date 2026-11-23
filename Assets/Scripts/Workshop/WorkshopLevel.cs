@@ -6,6 +6,31 @@ namespace AnchorMaster.Workshop
     public enum MaterialKind { Wood, Steel, Stone, Balloon }
     public enum WorkshopTool { Move, Wood, Steel, Stone, GroundAnchor, Reinforce, Erase }
 
+    public static class WorkshopMaterial
+    {
+        public static float Mass(MaterialKind material)
+        {
+            switch (material)
+            {
+                case MaterialKind.Steel: return 3f;
+                case MaterialKind.Stone: return 6f;
+                case MaterialKind.Balloon: return .35f;
+                default: return 1f;
+            }
+        }
+
+        public static float WindDrag(MaterialKind material)
+        {
+            switch (material)
+            {
+                case MaterialKind.Steel: return .8f;
+                case MaterialKind.Stone: return .35f;
+                case MaterialKind.Balloon: return 1.35f;
+                default: return 1f;
+            }
+        }
+    }
+
     [Serializable]
     public class BlockPlan
     {

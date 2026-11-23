@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AnchorMaster.Workshop
@@ -7,17 +8,56 @@ namespace AnchorMaster.Workshop
         GameObject placementPreview;
         SpriteRenderer previewTile, previewBlock;
         LineRenderer previewOutline;
+        readonly List<SceneryCloud> sceneryClouds = new List<SceneryCloud>();
+
+        class SceneryCloud
+        {
+            public Transform transform;
+            public float speed, originX, range;
+        }
+
+        void BuildScenery()
+        {
+            sceneryClouds.Clear();
+            float height = viewCamera.orthographicSize * 2;
+            float width = height * viewCamera.aspect;
+            Visual("Artwork Sky", viewCamera.transform.position, new Vector2(width * 1.08f, height * 1.08f),
+                Color.white, AssetSprite("sky1"), -20);
+            Visual("Artwork Sun", new Vector2(-width * .36f, 4.45f), Vector2.one * .9f,
+                Color.white, AssetSprite("sun"), -11);
+            AddSceneryCloud(new Vector2(-2.7f, 4.25f), new Vector2(3.4f, 1.2f), .12f, width * .18f);
+            AddSceneryCloud(new Vector2(4.1f, 3.85f), new Vector2(2.4f, .86f), -.08f, width * .12f);
+        }
+
+        void AddSceneryCloud(Vector2 position, Vector2 size, float speed, float range)
+        {
+            var cloud = Visual("Artwork Cloud", position, size, Color.white, AssetSprite("cloud"), -10);
+            sceneryClouds.Add(new SceneryCloud { transform = cloud.transform, speed = speed, originX = position.x, range = range });
+        }
+
+        void AnimateScenery(float deltaTime)
+        {
+            foreach (var cloud in sceneryClouds)
+            {
+                if (cloud.transform == null) continue;
+                var position = cloud.transform.position;
+                position.x += cloud.speed * deltaTime;
+                if (position.x > cloud.originX + cloud.range) position.x = cloud.originX - cloud.range;
+                else if (position.x < cloud.originX - cloud.range) position.x = cloud.originX + cloud.range;
+                cloud.transform.position = position;
+            }
+        }
 
         void BuildPlacementGrid()
         {
             Visual("Grid Shadow", new Vector2(0, .43f), new Vector2(11.22f, 6.22f),
-                new Color(.025f, .055f, .085f), square, -9);
+                new Color(.025f, .055f, .085f, .52f), square, -9);
             for (int x = -5; x <= 5; x++)
                 for (int y = -2; y <= 3; y++)
                     Visual("Grid Cell", new Vector2(x, y), Vector2.one * .98f,
-                        (x + y) % 2 == 0 ? new Color(.085f, .15f, .20f) : new Color(.095f, .165f, .215f), square, -8);
+                        (x + y) % 2 == 0 ? new Color(.085f, .15f, .20f, .78f) : new Color(.095f, .165f, .215f, .78f), square, -8);
 
-            var ink = new Color(.25f, .48f, .56f, .42f);
+            var ink = new Color(.25f, .48f, .56f, .58f);
             for (int x = -5; x <= 6; x++)
                 GridLine("Grid Vertical", new Vector2(x - .5f, -2.5f), new Vector2(x - .5f, 3.5f), .012f, ink);
             for (int y = -2; y <= 4; y++)

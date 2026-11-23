@@ -68,6 +68,10 @@ namespace AnchorMaster.Workshop
                 bool chosen = tool == row.Item1;
                 string title = row.Item1 == WorkshopTool.GroundAnchor || row.Item1 == WorkshopTool.Reinforce
                     ? row.Item2 + $"   {Level.anchors - UsedAnchors}/{Level.anchors}" : row.Item2;
+                string mass = row.Item1 == WorkshopTool.Wood ? $"{WorkshopMaterial.Mass(MaterialKind.Wood):0.##} kg"
+                    : row.Item1 == WorkshopTool.Steel ? $"{WorkshopMaterial.Mass(MaterialKind.Steel):0.##} kg"
+                    : row.Item1 == WorkshopTool.Stone ? $"{WorkshopMaterial.Mass(MaterialKind.Stone):0.##} kg" : null;
+                if (mass != null) row.Item3 = mass + " · " + row.Item3;
                 if (GUI.Button(rect, title + "\n" + row.Item3, Style(14, chosen ? Color.white : new Color(.77f, .84f, .84f), chosen ? new Color(.06f, .40f, .42f) : new Color(.11f, .16f, .18f), chosen)))
                 { tool = row.Item1; selectedEndpoint = null; }
             }

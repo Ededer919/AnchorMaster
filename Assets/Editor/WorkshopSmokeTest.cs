@@ -10,6 +10,7 @@ public static class WorkshopSmokeTest
         bool hadStars = PlayerPrefs.HasKey("WorkshopStars0");
         int oldStars = PlayerPrefs.GetInt("WorkshopStars0");
         var previousSimulationMode = Physics2D.simulationMode;
+        var previousGravity = Physics2D.gravity;
         var cameraObject = new GameObject("Workshop Smoke Camera", typeof(Camera));
         cameraObject.tag = "MainCamera";
         var root = new GameObject("Workshop Smoke Test");
@@ -21,10 +22,21 @@ public static class WorkshopSmokeTest
             Require(game.Level.title == "第一枚地锚", "Level one loads");
             Require(game.LevelCount >= 5, "Workshop levels are discovered from Resources");
             Require(game.UsedAnchors == 0, "Initial anchor count");
+            Require(WorkshopMaterial.Mass(MaterialKind.Wood) < WorkshopMaterial.Mass(MaterialKind.Steel)
+                && WorkshopMaterial.Mass(MaterialKind.Steel) < WorkshopMaterial.Mass(MaterialKind.Stone),
+                "Material masses are distinct and ordered");
+            VerifyMaterialWindResponse();
             Require(root.GetComponentsInChildren<Collider2D>().Length == game.Blueprint.Count,
                 "Only blueprint blocks have colliders; no bedrock or invisible floor");
             Require(root.GetComponentsInChildren<SpriteRenderer>().Count(s => s.name == "Grid Cell") == 66,
                 "All 11 by 6 placement cells are visible");
+            var art = root.GetComponentsInChildren<SpriteRenderer>();
+            Require(art.Any(s => s.name == "Artwork Sky" && s.sprite != null && s.sprite.name == "sky1")
+                && art.Count(s => s.name == "Artwork Cloud" && s.sprite != null && s.sprite.name == "cloud") == 2
+                && art.Any(s => s.name == "Artwork Sun" && s.sprite != null && s.sprite.name == "sun"),
+                "Project sky, clouds and sun assets are integrated in the workshop");
+            Require(art.Any(s => s.name == "Wood" && s.sprite != null && s.sprite.name == "Plank"),
+                "Existing project material sprites remain assigned to blocks");
             Require(game.Place(MaterialKind.Steel, new Vector2Int(2, 2)), "Place steel");
             Require(game.Remaining(MaterialKind.Steel) == 1, "Quota consumed");
             game.Undo();
@@ -76,6 +88,7 @@ public static class WorkshopSmokeTest
             else PlayerPrefs.DeleteKey("WorkshopStars0");
             PlayerPrefs.Save();
             Physics2D.simulationMode = previousSimulationMode;
+            Physics2D.gravity = previousGravity;
             Object.DestroyImmediate(root);
             Object.DestroyImmediate(cameraObject);
         }
@@ -92,6 +105,34 @@ public static class WorkshopSmokeTest
         {
             Physics2D.Simulate(1f / 60f);
             game.StepTrial(1f / 60f);
+        }
+    }
+
+    static void VerifyMaterialWindResponse()
+    {
+        Physics2D.gravity = Vector2.zero;
+        var woodObject = new GameObject("Wind Response Wood");
+        var steelObject = new GameObject("Wind Response Steel");
+        try
+        {
+            var wood = woodObject.AddComponent<Rigidbody2D>();
+            var steel = steelObject.AddComponent<Rigidbody2D>();
+            wood.mass = WorkshopMaterial.Mass(MaterialKind.Wood);
+            steel.mass = WorkshopMaterial.Mass(MaterialKind.Steel);
+            wood.drag = steel.drag = 0;
+            for (int i = 0; i < 30; i++)
+            {
+                wood.AddForce(Vector2.right * 10 * WorkshopMaterial.WindDrag(MaterialKind.Wood));
+                steel.AddForce(Vector2.right * 10 * WorkshopMaterial.WindDrag(MaterialKind.Steel));
+                Physics2D.Simulate(1f / 60f);
+            }
+            Require(wood.velocity.x > steel.velocity.x * 3,
+                $"Steel responds substantially less to equal wind (wood={wood.velocity.x:0.00}, steel={steel.velocity.x:0.00})");
+        }
+        finally
+        {
+            Object.DestroyImmediate(woodObject);
+            Object.DestroyImmediate(steelObject);
         }
     }
 }
