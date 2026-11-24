@@ -6,6 +6,24 @@ namespace AnchorMaster.Workshop
     public enum MaterialKind { Wood, Steel, Stone, Balloon }
     public enum WorkshopTool { Move, Wood, Steel, Stone, GroundAnchor, Reinforce, Erase }
 
+    public static class WorkshopText
+    {
+        const string Traditional = "體國學習錨風場測試過開關線連點選設計畫塊復氣錢數個隊進還轉調臺後壓強頂簡層標準這裡們為與無讓視標記圖壞懸邊兩時間結構評級斷鎖錯應驗製統實現預報餘額點擊選擇緊鄰設置繪製素材其餘線條基本寶貝氣壓負載頭壞擋風單向經驟敗戰繼續個別雲間風將來滿足難題從種數據節約導覽尋找並繫統計話語區塊單純運轉復制說明存盤處理調整關於麽頭風險勝利無法並且對當前區域寬度高度庫存數量數值設置底部開始復原確定提示錯誤無效點擊地圖簡介名稱持續秒數中途反轉方向工具建造替換起始清除只作用於至少否則勝利必須全部留在安全區材料小於建立目標保存";
+        const string Simplified = "体国学习锚风场测试过开关线连点选设计画块复气钱数个队进还转调台后压强顶简层标准这里们为与无让视标记图坏悬边两时间结构评级断锁错应验制统实现预报余额点击选择紧邻设置绘制素材其余线条基本宝贝气压负载头坏挡风单向经骤败战继续个别云间风将来满足难题从种数据节约导览寻找并系统计话语区块单纯运转复制说明存盘处理调整关于么头风险胜利无法并且对当前区域宽度高度库存数量数值设置底部开始复原确定提示错误无效点击地图简介名称持续秒数中途反转方向工具建造替换起始清除只作用于至少否则胜利必须全部留在安全区材料小于建立目标保存";
+
+        public static string Simplify(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            var chars = text.ToCharArray();
+            for (int i = 0; i < chars.Length; i++)
+            {
+                int index = Traditional.IndexOf(chars[i]);
+                if (index >= 0 && index < Simplified.Length) chars[i] = Simplified[index];
+            }
+            return new string(chars);
+        }
+    }
+
     public static class WorkshopMaterial
     {
         public static float Mass(MaterialKind material)

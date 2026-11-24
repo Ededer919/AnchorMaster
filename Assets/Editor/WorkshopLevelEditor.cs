@@ -40,7 +40,7 @@ public sealed class WorkshopLevelEditor : EditorWindow
         DrawToolbar();
         if (current == null)
         {
-            EditorGUILayout.HelpBox("尚無關卡資源，建立一個新關卡開始編輯。", MessageType.Info);
+            EditorGUILayout.HelpBox("尚无关卡资源，创建一个新关卡开始编辑。", MessageType.Info);
             return;
         }
 
@@ -57,7 +57,7 @@ public sealed class WorkshopLevelEditor : EditorWindow
     {
         using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
         {
-            var choices = levels.Select(level => $"{level.name}  |  {level.title}").ToArray();
+            var choices = levels.Select(level => $"{level.name}  |  {WorkshopText.Simplify(level.title)}").ToArray();
             int selected = current == null ? -1 : levels.IndexOf(current);
             int next = EditorGUILayout.Popup(selected, choices, EditorStyles.toolbarPopup, GUILayout.MinWidth(190));
             if (next >= 0 && next != selected) current = levels[next];
@@ -65,7 +65,7 @@ public sealed class WorkshopLevelEditor : EditorWindow
             if (GUILayout.Button("新建", EditorStyles.toolbarButton, GUILayout.Width(48))) CreateLevel(null);
             using (new EditorGUI.DisabledScope(current == null))
             {
-                if (GUILayout.Button("複製", EditorStyles.toolbarButton, GUILayout.Width(48))) CreateLevel(current);
+                if (GUILayout.Button("复制", EditorStyles.toolbarButton, GUILayout.Width(48))) CreateLevel(current);
                 if (GUILayout.Button("保存", EditorStyles.toolbarButton, GUILayout.Width(48))) SaveCurrent();
                 if (GUILayout.Button("定位", EditorStyles.toolbarButton, GUILayout.Width(48)))
                 {
@@ -78,36 +78,38 @@ public sealed class WorkshopLevelEditor : EditorWindow
 
     void DrawLevelSettings()
     {
+        current.title = WorkshopText.Simplify(current.title);
+        current.briefing = WorkshopText.Simplify(current.briefing);
+        current.hint = WorkshopText.Simplify(current.hint);
         var serializedObject = new SerializedObject(current);
         serializedObject.Update();
-        EditorGUILayout.LabelField("關卡資料", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("title"), new GUIContent("名稱"));
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("briefing"), new GUIContent("關卡簡介"));
+        EditorGUILayout.LabelField("关卡数据", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("title"), new GUIContent("名称"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("briefing"), new GUIContent("关卡简介"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("hint"), new GUIContent("提示"));
         EditorGUILayout.Space(4);
-        EditorGUILayout.LabelField("風暴設定", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("windForce"), new GUIContent("風力"));
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("duration"), new GUIContent("持續秒數"));
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("reversingWind"), new GUIContent("中途反轉風向"));
+        EditorGUILayout.LabelField("风暴设置", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("windForce"), new GUIContent("风力"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("duration"), new GUIContent("持续秒数"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("reversingWind"), new GUIContent("中途反转风向"));
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("玩家可用材料", EditorStyles.boldLabel);
         using (new EditorGUILayout.HorizontalScope())
         {
             EditorGUILayout.PropertyField(serializedObject.FindProperty("wood"), new GUIContent("木板"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("steel"), new GUIContent("鋼梁"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("stone"), new GUIContent("石塊"));
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("anchors"), new GUIContent("錨點"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("steel"), new GUIContent("钢梁"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("stone"), new GUIContent("石块"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("anchors"), new GUIContent("锚点"));
         }
         if (serializedObject.ApplyModifiedProperties()) EditorUtility.SetDirty(current);
     }
 
     void DrawBoard()
     {
-        EditorGUILayout.LabelField("起始地圖", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("起始地图", EditorStyles.boldLabel);
         boardTool = (BoardTool)GUILayout.Toolbar((int)boardTool,
-            new[] { "木板", "鋼梁", "石塊", "氣球", "橡皮擦", "地錨" });
-        EditorGUILayout.HelpBox("點格子放置或替換起始部件；選橡皮擦清除。地錨工具只作用於最底排。", MessageType.None);
-
+            new[] { "木板", "钢梁", "石块", "气球", "橡皮擦", "地锚" });
+        EditorGUILayout.HelpBox("点击格子放置或替换起始部件；选择橡皮擦清除。地锚工具只作用于最底排。", MessageType.None);
         for (int y = 3; y >= -2; y--)
         {
             using (new EditorGUILayout.HorizontalScope())
@@ -130,7 +132,7 @@ public sealed class WorkshopLevelEditor : EditorWindow
         string label = block == null ? "·" : MaterialLabel(block.material) + (block.grounded ? "\n⚓" : "");
         Color old = GUI.backgroundColor;
         GUI.backgroundColor = block == null ? new Color(.20f, .23f, .25f) : MaterialColor(block.material);
-        if (GUILayout.Button(label, GUILayout.Width(44), GUILayout.Height(38))) EditCell(cell, block);
+        if (GUILayout.Button(label, GUILayout.Width(44), GUILayout.Height(cellSize))) EditCell(cell, block);
         GUI.backgroundColor = old;
     }
 
@@ -149,7 +151,7 @@ public sealed class WorkshopLevelEditor : EditorWindow
             if (index >= 0 && cell.y == -2 && blocks[index].material != MaterialKind.Balloon)
                 blocks[index].grounded = !blocks[index].grounded;
             else if (cell.y != -2)
-                ShowNotification(new GUIContent("地錨只能設在最底排"));
+                ShowNotification(new GUIContent("地锚只能设在最底排"));
         }
         else
         {
@@ -174,17 +176,17 @@ public sealed class WorkshopLevelEditor : EditorWindow
         var blocks = current.startingBlocks ?? new BlockPlan[0];
         var duplicates = blocks.GroupBy(block => block.cell).Where(group => group.Count() > 1).Count();
         int balloons = blocks.Count(block => block.material == MaterialKind.Balloon);
-        EditorGUILayout.LabelField("檢查", EditorStyles.boldLabel);
-        if (duplicates > 0) EditorGUILayout.HelpBox("有重複佔用的格子。", MessageType.Error);
-        if (balloons == 0) EditorGUILayout.HelpBox("至少放置一個氣球，否則關卡無法勝利。", MessageType.Error);
-        else if (balloons > 1) EditorGUILayout.HelpBox($"起始氣球：{balloons} 個，必須全部留在安全區。", MessageType.Info);
+        EditorGUILayout.LabelField("检查", EditorStyles.boldLabel);
+        if (duplicates > 0) EditorGUILayout.HelpBox("存在重复占用的格子。", MessageType.Error);
+        if (balloons == 0) EditorGUILayout.HelpBox("至少放置一个气球，否则关卡无法获胜。", MessageType.Error);
+        else if (balloons > 1) EditorGUILayout.HelpBox($"起始气球：{balloons} 个，必须全部留在安全区。", MessageType.Info);
         if (blocks.Any(block => block.grounded && (block.cell.y != -2 || block.material == MaterialKind.Balloon)))
-            EditorGUILayout.HelpBox("地錨只能放在底排非氣球部件上。", MessageType.Error);
+            EditorGUILayout.HelpBox("地锚只能放在底排非气球部件上。", MessageType.Error);
         if (current.windForce <= 0 || current.duration <= 0)
-            EditorGUILayout.HelpBox("風力和持續時間必須大於 0。", MessageType.Error);
+            EditorGUILayout.HelpBox("风力和持续时间必须大于 0。", MessageType.Error);
         if (current.wood < 0 || current.steel < 0 || current.stone < 0 || current.anchors < 0)
-            EditorGUILayout.HelpBox("材料和錨點數量不能小於 0。", MessageType.Error);
-        if (GUILayout.Button("保存並檢查")) SaveCurrent();
+            EditorGUILayout.HelpBox("材料和锚点数量不能小于 0。", MessageType.Error);
+        if (GUILayout.Button("保存并检查")) SaveCurrent();
     }
 
     void CreateLevel(WorkshopLevel source)
@@ -208,8 +210,8 @@ public sealed class WorkshopLevelEditor : EditorWindow
         else
         {
             created = WorkshopLevel.CreateDefault(0);
-            created.title = "新關卡 " + number;
-            created.briefing = "設計你的關卡目標。";
+            created.title = "新关卡 " + number;
+            created.briefing = "设计你的关卡目标。";
             created.hint = "";
         }
         created.name = $"Workshop_{number}";
@@ -232,16 +234,16 @@ public sealed class WorkshopLevelEditor : EditorWindow
             || current.wood < 0 || current.steel < 0 || current.stone < 0 || current.anchors < 0;
         if (invalid)
         {
-            EditorUtility.DisplayDialog("無法保存", "請先修正地圖格子、氣球、地錨或風暴參數錯誤。", "確定");
+            EditorUtility.DisplayDialog("无法保存", "请先修正地图格子、气球、地锚或风暴参数错误。", "确定");
             return;
         }
         EditorUtility.SetDirty(current);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        ShowNotification(new GUIContent("關卡已保存"));
+        ShowNotification(new GUIContent("关卡已保存"));
     }
 
-    static string MaterialLabel(MaterialKind material) => material == MaterialKind.Wood ? "木" : material == MaterialKind.Steel ? "鋼" : material == MaterialKind.Stone ? "石" : "球";
+    static string MaterialLabel(MaterialKind material) => material == MaterialKind.Wood ? "木" : material == MaterialKind.Steel ? "钢" : material == MaterialKind.Stone ? "石" : "球";
 
     static int LevelSortNumber(string levelName)
     {

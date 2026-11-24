@@ -25,6 +25,8 @@ public static class WorkshopSmokeTest
             Require(WorkshopMaterial.Mass(MaterialKind.Wood) < WorkshopMaterial.Mass(MaterialKind.Steel)
                 && WorkshopMaterial.Mass(MaterialKind.Steel) < WorkshopMaterial.Mass(MaterialKind.Stone),
                 "Material masses are distinct and ordered");
+            Require(WorkshopText.Simplify("風暴結束後可回到同一方案繼續調整") == "风暴结束后可回到同一方案继续调整",
+                "Existing traditional level copy is displayed in simplified Chinese");
             VerifyMaterialWindResponse();
             Require(root.GetComponentsInChildren<Collider2D>().Length == game.Blueprint.Count,
                 "Only blueprint blocks have colliders; no bedrock or invisible floor");
